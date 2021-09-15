@@ -323,7 +323,6 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
     for trn_idx, tst_idx in trn_tst_lst:
 
         if mode == '0':  # k-fold cross validation
-
             if is_new_trn_label == 3:
                 new_trn_label = ['']
                 trn_id_lst = [patient_id[i] for i in trn_idx] + new_trn_label
@@ -336,7 +335,7 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
                 continue
 
             # set training set and test set to skip
-            skip_train_lst = ['']  # ['']
+            skip_train_lst = ['']  #
             for skip_patient_id in skip_train_lst:
                 if skip_patient_id in trn_id_lst:
                     trn_id_lst.remove(skip_patient_id)
@@ -365,35 +364,33 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
         f = prepare_files_to_write_icv(trn_id_lst, tst_id_lst, file_output_dir, approach, loss, k, mode,
                                        args, target, multi_output)
 
+        trn_img_lst, trn_lb_lst, trn_fn_lst, tst_img_lst, tst_lb_lst, tst_fn_lst = read_icv_dataset(data_path,
+                                                                                                    trn_id_lst,
+                                                                                                    tst_id_lst,
+                                                                                                    modality,
+                                                                                                    folder_names,
+                                                                                                    mode)
         if mode != '2':  # train the model
-            trn_img_lst, trn_lb_lst, trn_fn_lst, tst_img_lst, tst_lb_lst, tst_fn_lst = read_icv_dataset(data_path,
-                                                                                                        trn_id_lst,
-                                                                                                        tst_id_lst,
-                                                                                                        modality,
-                                                                                                        folder_names)
             fold_num = k
             model = train_icv_model(gen_conf, train_conf, trn_img_lst, trn_lb_lst, fold_num)
 
         else:  # test only
-            # read the trained model
-            tst_img_lst, tst_lb_lst, tst_fn_lst = read_icv_dataset_unseen(data_path, tst_id_lst, modality, folder_names)
-
             fold_num = k + 1
             model = read_model(gen_conf, train_conf, fold_num)  # model filename should have 'mode_2_'
 
         # predict the test set
-        for tst_img, tst_fn in zip(tst_img_lst, tst_fn_lst):
+        for tst_img, tst_lb, tst_fn in zip(tst_img_lst, tst_lb_lst, tst_fn_lst):
             print('#' + str(k + 1) + ': processing test_patient_id - ' + tst_fn)
 
             # inference from the learned model
             rec_vol_crop, prob_vol_crop, test_patches = inference(gen_conf, train_conf, test_conf, tst_img, model)
 
             # uncrop and save the segmentation result
-            save_icv_seg(gen_conf, train_conf, rec_vol_crop, prob_vol_crop, tst_fn, file_output_dir, fold_num)
+            save_icv_seg(gen_conf, train_conf, rec_vol_crop, prob_vol_crop, tst_lb, tst_fn, file_output_dir, fold_num)
 
             # compute DC
             if is_measure == 1:
-                _ = measure_icv_seg(gen_conf, train_conf, tst_fn, file_output_dir, fold_num)
+                _ = measure_icv_seg(gen_conf, tst_fn, file_output_dir, fold_num)
 
             del test_patches
 
@@ -1900,15 +1897,8 @@ def prepare_files_to_write_icv(train_patient_lst, test_patient_lst, file_output_
     if multi_output == 1:
         loss=loss[0]
 
-    for seg_label in target:
-        measure_pkl_filepath = file_output_dir + '/' + 'mode_' + mode + '_#' + str(k + 1) + '_' + 'measurement_' + \
-                               approach + '_' + loss + '_' + seg_label + '_seg.pkl'
-
-        if os.path.exists(measure_pkl_filepath):
-            os.remove(measure_pkl_filepath)
-
-    k_fold_mode_filepath = file_output_dir + '/' + 'mode_' + mode + '_#'+ str(k + 1) + '_' + \
-                           'training_test_patient_id_' + approach + '_' + loss + '.txt'
+    txt_fname = 'mode_' + mode + '_#'+ str(k + 1) + '_' + 'training_test_patient_id_' + approach + '_' + loss + '.txt'
+    k_fold_mode_filepath = os.path.join(file_output_dir, txt_fname)
     if os.path.exists(k_fold_mode_filepath):
         os.remove(k_fold_mode_filepath)
 
@@ -6702,16 +6692,16 @@ def measure(gen_conf, train_conf, test_conf, idx):
     return DC
 
 
-def measure_icv_seg(gen_conf, train_conf, tst_fn, file_output_dir, fold_num):
+def measure_icv_seg(gen_conf, tst_fn, file_output_dir, fold_num):
 
     import pandas as pd
     import pickle
 
-    dataset = train_conf['dataset']
     dataset_path = gen_conf['dataset_path']
 
-    gt_filepath = os.path.join(dataset_path, 'Y_conform', tst_fn + '.nii.gz')
-    seg_filepath = os.path.join(file_output_dir, tst_fn, 'icv_seg.nii.gz')
+    # gt_filepath = os.path.join(dataset_path, 'Y_conform', tst_fn + '.nii.gz')
+    gt_filepath = os.path.join(file_output_dir, tst_fn, 'icv_gt_%s.nii.gz' % fold_num)
+    seg_filepath = os.path.join(file_output_dir, tst_fn, 'icv_seg_%s.nii.gz' % fold_num)
 
     print(gt_filepath)
     print(seg_filepath)
