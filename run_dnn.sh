@@ -3,8 +3,8 @@
 ##!/usr/bin/env bash
 # for icv segmentation
 
-mode='0' # 0. training + testing (n-fold cross-validation), 1. training + testing (for designated cases) , 2. testing
-gpu_id='0' # specific gpu id ('0,1') or -1: all available GPUs, -2: cpu only
+mode='2' # 0. training + testing (n-fold cross-validation), 1. training + testing (for designated cases) , 2. testing
+gpu_id='1' # specific gpu id ('0,1') or -1: all available GPUs, -2: cpu only
 num_of_gpu='1' # only if gpu_id==-1
 num_classes='2' # 2 # 3
 multi_output='0'
@@ -33,7 +33,7 @@ trn_output_size='32,32,32'
 trn_step_size='16,16,16' #
 tst_patch_size='32,32,32' #'32,32,32'
 tst_output_size='32,32,32'
-tst_step_size='16,16,16'
+tst_step_size='9,9,9'
 crop_margin='5,5,5'
 bg_discard_percentage='0.2'
 normalized_range_min='0.0'
@@ -45,7 +45,7 @@ is_unseen_case='0'
 is_measure='1'
 is_new_trn_label='0' # 0: 29 manual labels, 1: 31 segmentation using a proposed network, 2: suit labels, 3: 29 manual labels + 31 seg (self-training?)
 new_label_path=''
-folder_names='manual' # if is_unseen_case on, then data name for test set
+folder_names='CAT' #ASAN, manual' # if is_unseen_case on, then data name for test set
 dataset_path='/mnt/home/jinyoung/data/icv_seg/dataset2.hdf5'
 
 

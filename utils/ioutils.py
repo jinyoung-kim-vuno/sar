@@ -408,9 +408,11 @@ def read_icv_dataset(data_path, trn_id_lst, tst_id_lst, modality, folder_names, 
             trn_img_idx = 0
             print('training set id')
             for trn_id in trn_id_lst:
-                print(pid_lst[int(trn_id)])
-                x = db[f'{data}/{pid_lst[int(trn_id)]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
-                y = db[f'{data}/{pid_lst[int(trn_id)]}/y'][:].transpose([1, 0, 2])
+                if isinstance(trn_id, str):
+                    trn_id = int(trn_id)
+                print(pid_lst[trn_id])
+                x = db[f'{data}/{pid_lst[trn_id]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
+                y = db[f'{data}/{pid_lst[trn_id]}/y'][:].transpose([1, 0, 2])
 
                 x = normalize_image(x, [0, 2 ** 8])
                 y = normalize_image(y, [0, 1])
@@ -428,21 +430,23 @@ def read_icv_dataset(data_path, trn_id_lst, tst_id_lst, modality, folder_names, 
                 else:
                     label_data[0, 0] = y
                 trn_lb_lst.append(label_data)
-                trn_fn_lst.append(pid_lst[int(trn_id)])
+                trn_fn_lst.append(pid_lst[trn_id])
 
                 trn_img_idx += 1
-
             print ("# of volumes: ", trn_img_idx)
         else:
             # if tst_id_lst is empty, then process all the data in the folder
-            if tst_id_lst is None or len(tst_id_lst) == 0:
+            if tst_id_lst[0] is None or len(tst_id_lst) == 0:
                 tst_id_lst = range(len(pid_lst))
 
         tst_img_idx = 0
         print('test set id')
         for tst_id in tst_id_lst:
-            x = db[f'{data}/{pid_lst[int(tst_id)]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
-            y = db[f'{data}/{pid_lst[int(tst_id)]}/y'][:].transpose([1, 0, 2])
+            if isinstance(tst_id, str):
+                tst_id = int(tst_id)
+            print(pid_lst[tst_id])
+            x = db[f'{data}/{pid_lst[tst_id]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
+            y = db[f'{data}/{pid_lst[tst_id]}/y'][:].transpose([1, 0, 2])
 
             x = normalize_image(x, [0, 2 ** 8])
             y = normalize_image(y, [0, 1])
@@ -460,7 +464,7 @@ def read_icv_dataset(data_path, trn_id_lst, tst_id_lst, modality, folder_names, 
             else:
                 label_data[0, 0] = y
             tst_lb_lst.append(label_data)
-            tst_fn_lst.append(pid_lst[int(tst_id)])
+            tst_fn_lst.append(pid_lst[tst_id])
             tst_img_idx += 1
 
         print ("# of volumes: ", tst_img_idx)
@@ -4087,33 +4091,57 @@ def save_volume_cbct(gen_conf, train_conf, test_conf, volume, filename_ext, case
     __save_volume(volume, image_data, out_filename, dataset_info['format'], is_compressed=True)
 
 
-def save_icv_seg(gen_conf, train_conf, volume, prob_volume, tst_lb, tst_fn, file_output_dir, fold_num):
+def save_icv_seg(gen_conf, train_conf, volume, prob_volume, tst_lb, tst_fn, file_output_dir, folder_names, fold_num):
     dataset = train_conf['dataset']
     dataset_info = gen_conf['dataset_info'][dataset]
     dataset_path = gen_conf['dataset_path']
+    data = folder_names[0]
 
     print(tst_lb.shape)
     print(volume.shape)
     print(prob_volume.shape)
 
-    tst_file_path = os.path.join(dataset_path, 'X_conform', tst_fn + '.nii.gz')
+    if data == 'manual':
+        tst_file_path = os.path.join(os.path.dirname(dataset_path), data, 'X_conform', tst_fn + '.nii.gz')
+    else:
+        tst_file_path = os.path.join(os.path.dirname(dataset_path), data, tst_fn, tst_fn + '.nii.gz')
     print(tst_file_path)
 
     tst_img_data = read_volume_data(tst_file_path)
     tst_img_volume = tst_img_data.get_data()
     print(tst_img_volume.shape)
 
-    icv_gt_filename = os.path.join(file_output_dir, tst_fn, 'icv_gt_%s.nii.gz' % fold_num)
+    tst_dir = os.path.join(file_output_dir, tst_fn)
+    if not os.path.exists(tst_dir):
+        os.makedirs(tst_dir)
+
+    t1_filename = os.path.join(tst_dir, 't1.nii.gz')
+    print(t1_filename)
+    __save_volume(tst_img_volume, tst_img_data, t1_filename, dataset_info['format'], is_compressed=True)
+
+    if data == 'manual':
+        icv_gt_filename = os.path.join(tst_dir, 'icv_gt_%s.nii.gz' % fold_num)
+    else:
+        icv_gt_filename = os.path.join(tst_dir, 'icv_mapper_%s.nii.gz' % fold_num)
     print(icv_gt_filename)
     __save_volume(tst_lb[0,0].transpose([1, 0, 2]), tst_img_data, icv_gt_filename, dataset_info['format'], is_compressed=True)
 
-    icv_seg_filename = os.path.join(file_output_dir, tst_fn, 'icv_seg_%s.nii.gz' % fold_num)
+    icv_seg_filename = os.path.join(tst_dir, 'icv_seg_%s.nii.gz' % fold_num)
     print(icv_seg_filename)
     __save_volume(volume.transpose([1, 0, 2]), tst_img_data, icv_seg_filename, dataset_info['format'], is_compressed=True)
 
-    icv_prob_filename = os.path.join(file_output_dir, tst_fn, 'icv_prob_%s.nii.gz' % fold_num)
-    print(icv_prob_filename)
-    __save_volume(prob_volume.transpose([1, 0, 2]), tst_img_data, icv_prob_filename, dataset_info['format'], is_compressed=True)
+    icv_seg_post_filename = os.path.join(tst_dir, 'icv_seg_postprocessed_%s.nii.gz' % fold_num)
+    print(icv_seg_post_filename)
+    volume_post = postprocess(volume)
+    __save_volume(volume_post.transpose([1, 0, 2]), tst_img_data, icv_seg_post_filename, dataset_info['format'], is_compressed=True)
+
+    icv_prob_bg_filename = os.path.join(tst_dir, 'icv_prob_bg_%s.nii.gz' % fold_num)
+    print(icv_prob_bg_filename)
+    __save_volume(prob_volume[0].transpose([1, 0, 2]), tst_img_data, icv_prob_bg_filename, dataset_info['format'], is_compressed=True)
+
+    icv_prob_fg_filename = os.path.join(tst_dir, 'icv_prob_fg_%s.nii.gz' % fold_num)
+    print(icv_prob_fg_filename)
+    __save_volume(prob_volume[1].transpose([1, 0, 2]), tst_img_data, icv_prob_fg_filename, dataset_info['format'], is_compressed=True)
 
 
 def save_volume_tha(gen_conf, train_conf, test_conf, volume, prob_volume, test_fname, test_patient_id, seg_label,

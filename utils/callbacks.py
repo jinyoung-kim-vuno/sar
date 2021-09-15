@@ -1,5 +1,6 @@
 import os
 import math
+import datetime
 from tensorflow.keras.callbacks import CSVLogger
 from tensorflow.keras.callbacks import TensorBoard
 from tensorflow.keras.callbacks import EarlyStopping
@@ -58,12 +59,12 @@ def generate_callbacks(gen_conf, train_conf, case_name) :
 
     if multi_output == 1:
         loss = loss[0] + '_' + loss[1]
-    model_filename = generate_output_filename(root_path + model_dir, dataset + '/' + folder_names[0], 'mode_'+ mode,
+    model_filename = generate_output_filename(root_dir + model_dir, dataset + '/' + folder_names[0], 'mode_'+ mode,
                                               case_name, approach, loss, 'dim_' + str(dimension), 'n_classes_' +
                                               str(num_classes), str(patch_shape), str(extraction_step),
                                               data_augment_label, 'preproc_trn_opt_' + str(preprocess_trn), 'h5')
 
-    csv_filename = generate_output_filename(root_path + log_dir, dataset + '/' + folder_names[0], 'mode_'+ mode,
+    csv_filename = generate_output_filename(root_dir + log_dir, dataset + '/' + folder_names[0], 'mode_'+ mode,
                                             case_name, approach, loss, 'dim_' + str(dimension), 'n_classes_' +
                                             str(num_classes), str(patch_shape), str(extraction_step),
                                             data_augment_label, 'preproc_trn_opt_' + str(preprocess_trn), 'cvs')
@@ -103,9 +104,7 @@ def generate_callbacks(gen_conf, train_conf, case_name) :
 
     current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     log_path_f = log_path + '/' + current_time
-    tb_logger = TensorBoard(log_dir=log_path_f, histogram_freq=0, write_graph=True, write_images=False,
-                            write_steps_per_second=False, update_freq='epoch', profile_batch=2, embeddings_freq=0,
-                            embeddings_metadata=None)
+    tb_logger = TensorBoard(log_dir=log_path_f)
 
     if optimizer == 'SGD':
         # learning rate schedule for SGD (Adam, Adagrad, and RMSprop are adaptive learning rate methods and keras provides options)

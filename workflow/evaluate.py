@@ -11,8 +11,7 @@ from utils.ioutils import read_dataset, read_ADNI_dataset, read_volume, read_vol
     read_interposed_fastigial_dataset_rev, save_volume_dentate, save_volume_interposed_fastigial, \
     save_volume_dentate_interposed, read_tha_dataset, read_tha_dataset_unseen, save_volume_tha, save_volume_tha_unseen, \
     save_volume_tha_v2, read_dentate_interposed_dataset_unseen, save_volume_dentate_interposed_unseen, \
-    read_sar_dataset, save_sar_volume, __save_sar_volume, save_sar_volume_2_5D, read_icv_dataset, save_icv_seg, \
-    read_icv_dataset_unseen
+    read_sar_dataset, save_sar_volume, __save_sar_volume, save_sar_volume_2_5D, read_icv_dataset, save_icv_seg
 from utils.image import preprocess_test_image, hist_match, normalize_image, standardize_set, hist_match_set, \
     standardize_volume, find_crop_mask, crop_image
 from utils.reconstruction import reconstruct_volume, reconstruct_volume_modified, reconstruct_volume_sar
@@ -314,7 +313,7 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
     elif mode == '2': # test only # combine to mode 1
         trn_id_lst = [[None]]
         tst_id_lst = [[None]]   # 5th
-        trn_set_num = 5
+        fold_num = 0
         trn_tst_lst = zip(trn_id_lst, tst_id_lst)
     else:
         raise NotImplementedError('mode ' + mode + 'does not exist')
@@ -330,7 +329,7 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
                 trn_id_lst = [patient_id[i] for i in trn_idx]
             tst_id_lst = [patient_id[i] for i in tst_idx]
 
-            if k in []:
+            if k in [0]:
                 k += 1
                 continue
 
@@ -348,20 +347,22 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
             if len(tst_id_lst) == 0:
                 k += 1
                 continue
+
+            fold_num = k
         else:
 
             if k in []:
                 k += 1
                 continue
 
-            if mode is '2':
-                k = trn_set_num - 1
+            if mode is '1':
+                fold_num = k
 
             trn_id_lst = trn_idx
             tst_id_lst = tst_idx
 
         # prepare for the files to write
-        f = prepare_files_to_write_icv(trn_id_lst, tst_id_lst, file_output_dir, approach, loss, k, mode,
+        f = prepare_files_to_write_icv(trn_id_lst, tst_id_lst, file_output_dir, approach, loss, fold_num, mode,
                                        args, target, multi_output)
 
         trn_img_lst, trn_lb_lst, trn_fn_lst, tst_img_lst, tst_lb_lst, tst_fn_lst = read_icv_dataset(data_path,
@@ -371,26 +372,25 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
                                                                                                     folder_names,
                                                                                                     mode)
         if mode != '2':  # train the model
-            fold_num = k
             model = train_icv_model(gen_conf, train_conf, trn_img_lst, trn_lb_lst, fold_num)
 
         else:  # test only
-            fold_num = k + 1
             model = read_model(gen_conf, train_conf, fold_num)  # model filename should have 'mode_2_'
 
         # predict the test set
         for tst_img, tst_lb, tst_fn in zip(tst_img_lst, tst_lb_lst, tst_fn_lst):
-            print('#' + str(k + 1) + ': processing test_patient_id - ' + tst_fn)
+            print('#' + str(fold_num) + ': processing test_patient_id - ' + tst_fn)
 
             # inference from the learned model
             rec_vol_crop, prob_vol_crop, test_patches = inference(gen_conf, train_conf, test_conf, tst_img, model)
 
             # uncrop and save the segmentation result
-            save_icv_seg(gen_conf, train_conf, rec_vol_crop, prob_vol_crop, tst_lb, tst_fn, file_output_dir, fold_num)
+            save_icv_seg(gen_conf, train_conf, rec_vol_crop, prob_vol_crop, tst_lb, tst_fn, file_output_dir,
+                         folder_names, fold_num)
 
             # compute DC
             if is_measure == 1:
-                _ = measure_icv_seg(gen_conf, tst_fn, file_output_dir, fold_num)
+                _ = measure_icv_seg(gen_conf, tst_fn, file_output_dir, folder_names, fold_num)
 
             del test_patches
 
@@ -1891,18 +1891,18 @@ def prepare_files_to_write(train_patient_lst, test_patient_lst, file_output_dir,
     return f
 
 
-def prepare_files_to_write_icv(train_patient_lst, test_patient_lst, file_output_dir, approach, loss, k, mode, args,
+def prepare_files_to_write_icv(train_patient_lst, test_patient_lst, file_output_dir, approach, loss, fold_num, mode, args,
                                target, multi_output):
 
     if multi_output == 1:
         loss=loss[0]
 
-    txt_fname = 'mode_' + mode + '_#'+ str(k + 1) + '_' + 'training_test_patient_id_' + approach + '_' + loss + '.txt'
+    txt_fname = 'mode_' + mode + '_#'+ str(fold_num) + '_' + 'training_test_patient_id_' + approach + '_' + loss + '.txt'
     k_fold_mode_filepath = os.path.join(file_output_dir, txt_fname)
     if os.path.exists(k_fold_mode_filepath):
         os.remove(k_fold_mode_filepath)
 
-    k_fold_patient_list = '#' + str(k + 1) + '\ntrain sets: %s \ntest sets: %s \nparameter sets: %s' \
+    k_fold_patient_list = '#' + str(fold_num) + '\ntrain sets: %s \ntest sets: %s \nparameter sets: %s' \
                           % (train_patient_lst, test_patient_lst, args)
 
     f = ioutils.create_log(k_fold_mode_filepath, k_fold_patient_list, is_debug=1)
@@ -6297,11 +6297,11 @@ def inference(gen_conf, train_conf, test_conf, test_vol, trained_model):
     if multi_output == 1:
         for r in rec_vol:
             print(r.shape)
-        for p in prob_vol:
+        for p in prob_vol[0]:
             print(p.shape)
     else:
         print(rec_vol.shape)
-        print(prob_vol.shape)
+        print(prob_vol[0].shape)
 
     # re-crop zero-padded vol
     if np.sum(pad_size_total) != 0:
@@ -6317,15 +6317,15 @@ def inference(gen_conf, train_conf, test_conf, test_vol, trained_model):
 
         if multi_output == 1:
             rec_vol_crop, prob_vol_crop = [], []
-            for rec, prob in zip(rec_vol, prob_vol):
+            for rec, prob in zip(rec_vol, prob_vol[0]):
                 rec_vol_crop.append(rec[start_ind[0]:end_ind[0], start_ind[1]:end_ind[1], start_ind[2]:end_ind[2]])
                 prob_vol_crop.append(prob[start_ind[0]:end_ind[0], start_ind[1]:end_ind[1], start_ind[2]:end_ind[2]])
         else:
             rec_vol_crop = rec_vol[start_ind[0]:end_ind[0], start_ind[1]:end_ind[1], start_ind[2]:end_ind[2]]
-            prob_vol_crop = prob_vol[start_ind[0]:end_ind[0], start_ind[1]:end_ind[1], start_ind[2]:end_ind[2]]
+            prob_vol_crop = prob_vol[0][start_ind[0]:end_ind[0], start_ind[1]:end_ind[1], start_ind[2]:end_ind[2]]
     else:
         rec_vol_crop = rec_vol
-        prob_vol_crop = prob_vol
+        prob_vol_crop = prob_vol[0]
     if multi_output == 1:
         for rc in rec_vol_crop:
             print(rc.shape)
@@ -6692,16 +6692,23 @@ def measure(gen_conf, train_conf, test_conf, idx):
     return DC
 
 
-def measure_icv_seg(gen_conf, tst_fn, file_output_dir, fold_num):
+def measure_icv_seg(gen_conf, tst_fn, file_output_dir, folder_names, fold_num):
 
     import pandas as pd
     import pickle
 
     dataset_path = gen_conf['dataset_path']
+    data = folder_names[0]
 
     # gt_filepath = os.path.join(dataset_path, 'Y_conform', tst_fn + '.nii.gz')
-    gt_filepath = os.path.join(file_output_dir, tst_fn, 'icv_gt_%s.nii.gz' % fold_num)
-    seg_filepath = os.path.join(file_output_dir, tst_fn, 'icv_seg_%s.nii.gz' % fold_num)
+    tst_dir = os.path.join(file_output_dir, tst_fn)
+
+    if data == 'manual':
+        gt_filepath = os.path.join(tst_dir, 'icv_gt_%s.nii.gz' % fold_num)
+    else:
+        gt_filepath = os.path.join(tst_dir, 'icv_mapper_%s.nii.gz' % fold_num)
+    #seg_filepath = os.path.join(tst_dir, 'icv_seg_%s.nii.gz' % fold_num)
+    seg_filepath = os.path.join(tst_dir, 'icv_seg_postprocessed_%s.nii.gz' % fold_num)
 
     print(gt_filepath)
     print(seg_filepath)
@@ -6748,8 +6755,8 @@ def measure_icv_seg(gen_conf, tst_fn, file_output_dir, fold_num):
             dc = dice(gt_image_f, seg_image_f)
 
     # Save results in dataframe as pkl
-    measure_pkl_filepath = os.path.join(file_output_dir, tst_fn, 'measurement_%s.pkl' % fold_num)
-    patient_results = {'DC': dc, 'VOL': seg_vol, 'VOL_manual': gt_vol}
+    measure_pkl_filepath = os.path.join(file_output_dir, 'measurement_%s.pkl' % fold_num)
+    patient_results = {'DC': [dc], 'VOL': [seg_vol], 'VOL_manual': [gt_vol]}
     columns_name_lst = ['DC', 'VOL', 'VOL_manual']
     patient_results_df = pd.DataFrame(patient_results, columns=columns_name_lst)
     patient_results_df.insert(0, 'patient_id', [tst_fn])
