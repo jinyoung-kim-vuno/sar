@@ -11,7 +11,8 @@ from utils.ioutils import read_dataset, read_ADNI_dataset, read_volume, read_vol
     read_interposed_fastigial_dataset_rev, save_volume_dentate, save_volume_interposed_fastigial, \
     save_volume_dentate_interposed, read_tha_dataset, read_tha_dataset_unseen, save_volume_tha, save_volume_tha_unseen, \
     save_volume_tha_v2, read_dentate_interposed_dataset_unseen, save_volume_dentate_interposed_unseen, \
-    read_sar_dataset, save_sar_volume, __save_sar_volume, save_sar_volume_2_5D
+    read_sar_dataset, save_sar_volume, __save_sar_volume, save_sar_volume_2_5D, read_icv_dataset, save_icv_seg, \
+    read_icv_dataset_unseen
 from utils.image import preprocess_test_image, hist_match, normalize_image, standardize_set, hist_match_set, \
     standardize_volume, find_crop_mask, crop_image
 from utils.reconstruction import reconstruct_volume, reconstruct_volume_modified, reconstruct_volume_sar
@@ -23,14 +24,14 @@ from utils.mixup_generator import MixupGenerator
 from utils.mathutils import compute_statistics, computeDice, dice, measure_cmd, measure_msd, measure_psnr, \
     measure_is_inception_v3, measure_fid_inception_v3
 from utils import random_eraser, ioutils
-from keras.preprocessing.image import ImageDataGenerator
-from keras.models import load_model
-import keras.backend as K
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.models import load_model
+import tensorflow.keras.backend as K
 import tensorflow as tf
 import itertools
 from PIL import Image
 from utils.augmentation import augmentations
-from importance_sampling.training import ImportanceTraining
+#from importance_sampling.training import ImportanceTraining
 import glob
 from operator import itemgetter
 import random
@@ -130,75 +131,75 @@ def run_evaluation_in_dataset(gen_conf, train_conf, test_conf, args):
         gen_conf['dataset_info'][train_conf['dataset']]['exclude_label_num'] = exclude_label_num[0]
     else:
         gen_conf['dataset_info'][train_conf['dataset']]['exclude_label_num'] = exclude_label_num
-
-    train_conf['GAN']['feedback']['use'] = int(args.f_use)
-    train_conf['GAN']['feedback']['num_loop'] = int(args.f_num_loop)
-    train_conf['GAN']['feedback']['spectral_norm'] = int(args.f_spectral_norm)
-    train_conf['GAN']['generator']['network'] = args.g_network
-    train_conf['GAN']['generator']['optimizer'] = args.g_optimizer
-    train_conf['GAN']['generator']['initial_lr'] = float(args.g_initial_lr)
-    g_num_classes = tuple([int(i) for i in args.g_num_classes.split(',')])
-    if len(g_num_classes) == 1:
-        train_conf['GAN']['generator']['num_classes'] = g_num_classes[0]
-    else:
-        train_conf['GAN']['generator']['num_classes'] = g_num_classes
-    train_conf['GAN']['generator']['multi_output'] = int(args.g_multi_output)
-
-    g_output_name = args.g_output_name.split(',')
-    if len(g_output_name) == 1:
-        train_conf['GAN']['generator']['output_name'] = g_output_name[0]
-    else:
-        train_conf['GAN']['generator']['output_name'] = g_output_name
-    train_conf['GAN']['generator']['attention_loss'] = int(args.g_attention_loss)
-    train_conf['GAN']['generator']['overlap_penalty_loss'] = int(args.g_overlap_penalty_loss)
-    train_conf['GAN']['generator']['lamda'] = tuple([float(i) for i in args.g_lamda.split(',')])
-    train_conf['GAN']['generator']['adv_loss_weight'] = float(args.g_adv_loss_weight)
-    train_conf['GAN']['generator']['metric'] = args.g_metric
-    g_loss = args.g_loss.split(',')
-    if len(g_loss) == 1:
-        train_conf['GAN']['generator']['loss'] = g_loss[0]
-    else:
-        train_conf['GAN']['generator']['loss'] = g_loss
-    g_activation = args.g_activation.split(',')
-    if len(g_activation) == 1:
-        train_conf['GAN']['generator']['activation'] = g_activation[0]
-    else:
-        train_conf['GAN']['generator']['activation'] = g_activation
-    train_conf['GAN']['generator']['spectral_norm'] = int(args.g_spectral_norm)
-    train_conf['GAN']['generator']['patch_shape'] = tuple([int(i) for i in args.g_trn_patch_size.split(',')])
-    test_conf['GAN']['generator']['patch_shape'] = tuple([int(i) for i in args.g_tst_patch_size.split(',')])
-    train_conf['GAN']['generator']['output_shape'] = tuple([int(i) for i in args.g_trn_output_size.split(',')])
-    test_conf['GAN']['generator']['output_shape'] = tuple([int(i) for i in args.g_tst_output_size.split(',')])
-    train_conf['GAN']['generator']['extraction_step'] = tuple([int(i) for i in args.g_trn_step_size.split(',')])
-    test_conf['GAN']['generator']['extraction_step'] = tuple([int(i) for i in args.g_tst_step_size.split(',')])
-
-    # discriminator
-    train_conf['GAN']['discriminator']['network'] = args.d_network
-    train_conf['GAN']['discriminator']['optimizer'] = args.d_optimizer
-    train_conf['GAN']['discriminator']['initial_lr'] = float(args.d_initial_lr)
-    d_num_classes = tuple([int(i) for i in args.d_num_classes.split(',')])
-    if len(d_num_classes) == 1:
-        train_conf['GAN']['discriminator']['num_classes'] = d_num_classes[0]
-    else:
-        train_conf['GAN']['discriminator']['num_classes'] = d_num_classes
-    train_conf['GAN']['discriminator']['metric'] = args.d_metric
-    d_loss = args.d_loss.split(',')
-    if len(d_loss) == 1:
-        train_conf['GAN']['discriminator']['loss'] = d_loss[0]
-    else:
-        train_conf['GAN']['discriminator']['loss'] = d_loss
-    d_activation = args.d_activation.split(',')
-    if len(d_activation) == 1:
-        train_conf['GAN']['discriminator']['activation'] = d_activation[0]
-    else:
-        train_conf['GAN']['discriminator']['activation'] = d_activation
-    train_conf['GAN']['discriminator']['spectral_norm'] = int(args.d_spectral_norm)
-    train_conf['GAN']['discriminator']['patch_shape'] = tuple([int(i) for i in args.d_trn_patch_size.split(',')])
-    test_conf['GAN']['discriminator']['patch_shape'] = tuple([int(i) for i in args.d_tst_patch_size.split(',')])
-    train_conf['GAN']['discriminator']['output_shape'] = tuple([int(i) for i in args.d_trn_output_size.split(',')])
-    test_conf['GAN']['discriminator']['output_shape'] = tuple([int(i) for i in args.d_tst_output_size.split(',')])
-    train_conf['GAN']['discriminator']['extraction_step'] = tuple([int(i) for i in args.d_trn_step_size.split(',')])
-    test_conf['GAN']['discriminator']['extraction_step'] = tuple([int(i) for i in args.d_tst_step_size.split(',')])
+    #
+    # train_conf['GAN']['feedback']['use'] = int(args.f_use)
+    # train_conf['GAN']['feedback']['num_loop'] = int(args.f_num_loop)
+    # train_conf['GAN']['feedback']['spectral_norm'] = int(args.f_spectral_norm)
+    # train_conf['GAN']['generator']['network'] = args.g_network
+    # train_conf['GAN']['generator']['optimizer'] = args.g_optimizer
+    # train_conf['GAN']['generator']['initial_lr'] = float(args.g_initial_lr)
+    # g_num_classes = tuple([int(i) for i in args.g_num_classes.split(',')])
+    # if len(g_num_classes) == 1:
+    #     train_conf['GAN']['generator']['num_classes'] = g_num_classes[0]
+    # else:
+    #     train_conf['GAN']['generator']['num_classes'] = g_num_classes
+    # train_conf['GAN']['generator']['multi_output'] = int(args.g_multi_output)
+    #
+    # g_output_name = args.g_output_name.split(',')
+    # if len(g_output_name) == 1:
+    #     train_conf['GAN']['generator']['output_name'] = g_output_name[0]
+    # else:
+    #     train_conf['GAN']['generator']['output_name'] = g_output_name
+    # train_conf['GAN']['generator']['attention_loss'] = int(args.g_attention_loss)
+    # train_conf['GAN']['generator']['overlap_penalty_loss'] = int(args.g_overlap_penalty_loss)
+    # train_conf['GAN']['generator']['lamda'] = tuple([float(i) for i in args.g_lamda.split(',')])
+    # train_conf['GAN']['generator']['adv_loss_weight'] = float(args.g_adv_loss_weight)
+    # train_conf['GAN']['generator']['metric'] = args.g_metric
+    # g_loss = args.g_loss.split(',')
+    # if len(g_loss) == 1:
+    #     train_conf['GAN']['generator']['loss'] = g_loss[0]
+    # else:
+    #     train_conf['GAN']['generator']['loss'] = g_loss
+    # g_activation = args.g_activation.split(',')
+    # if len(g_activation) == 1:
+    #     train_conf['GAN']['generator']['activation'] = g_activation[0]
+    # else:
+    #     train_conf['GAN']['generator']['activation'] = g_activation
+    # train_conf['GAN']['generator']['spectral_norm'] = int(args.g_spectral_norm)
+    # train_conf['GAN']['generator']['patch_shape'] = tuple([int(i) for i in args.g_trn_patch_size.split(',')])
+    # test_conf['GAN']['generator']['patch_shape'] = tuple([int(i) for i in args.g_tst_patch_size.split(',')])
+    # train_conf['GAN']['generator']['output_shape'] = tuple([int(i) for i in args.g_trn_output_size.split(',')])
+    # test_conf['GAN']['generator']['output_shape'] = tuple([int(i) for i in args.g_tst_output_size.split(',')])
+    # train_conf['GAN']['generator']['extraction_step'] = tuple([int(i) for i in args.g_trn_step_size.split(',')])
+    # test_conf['GAN']['generator']['extraction_step'] = tuple([int(i) for i in args.g_tst_step_size.split(',')])
+    #
+    # # discriminator
+    # train_conf['GAN']['discriminator']['network'] = args.d_network
+    # train_conf['GAN']['discriminator']['optimizer'] = args.d_optimizer
+    # train_conf['GAN']['discriminator']['initial_lr'] = float(args.d_initial_lr)
+    # d_num_classes = tuple([int(i) for i in args.d_num_classes.split(',')])
+    # if len(d_num_classes) == 1:
+    #     train_conf['GAN']['discriminator']['num_classes'] = d_num_classes[0]
+    # else:
+    #     train_conf['GAN']['discriminator']['num_classes'] = d_num_classes
+    # train_conf['GAN']['discriminator']['metric'] = args.d_metric
+    # d_loss = args.d_loss.split(',')
+    # if len(d_loss) == 1:
+    #     train_conf['GAN']['discriminator']['loss'] = d_loss[0]
+    # else:
+    #     train_conf['GAN']['discriminator']['loss'] = d_loss
+    # d_activation = args.d_activation.split(',')
+    # if len(d_activation) == 1:
+    #     train_conf['GAN']['discriminator']['activation'] = d_activation[0]
+    # else:
+    #     train_conf['GAN']['discriminator']['activation'] = d_activation
+    # train_conf['GAN']['discriminator']['spectral_norm'] = int(args.d_spectral_norm)
+    # train_conf['GAN']['discriminator']['patch_shape'] = tuple([int(i) for i in args.d_trn_patch_size.split(',')])
+    # test_conf['GAN']['discriminator']['patch_shape'] = tuple([int(i) for i in args.d_tst_patch_size.split(',')])
+    # train_conf['GAN']['discriminator']['output_shape'] = tuple([int(i) for i in args.d_trn_output_size.split(',')])
+    # test_conf['GAN']['discriminator']['output_shape'] = tuple([int(i) for i in args.d_tst_output_size.split(',')])
+    # train_conf['GAN']['discriminator']['extraction_step'] = tuple([int(i) for i in args.d_trn_step_size.split(',')])
+    # test_conf['GAN']['discriminator']['extraction_step'] = tuple([int(i) for i in args.d_tst_step_size.split(',')])
 
 
     if args.mode == '0': # training + testing
@@ -227,6 +228,8 @@ def run_evaluation_in_dataset(gen_conf, train_conf, test_conf, args):
                 return evaluate_sar_prediction_2_5D(gen_conf, train_conf, test_conf)
             else:
                 return evaluate_sar_prediction(gen_conf, train_conf, test_conf)
+        if train_conf['dataset'] in ['icv_seg_dl']:
+            return evaluate_icv_seg(gen_conf, train_conf, test_conf)
 
     elif args.mode == '1': # training only
         if train_conf['dataset'] in ['3T7T', '3T7T_real', '3T7T_total', '3T+7T', '3T7T_multi']:
@@ -248,6 +251,8 @@ def run_evaluation_in_dataset(gen_conf, train_conf, test_conf, args):
                 return evaluate_sar_prediction_2_5D(gen_conf, train_conf, test_conf)
             else:
                 return evaluate_sar_prediction(gen_conf, train_conf, test_conf)
+        if train_conf['dataset'] in ['icv_seg_dl']:
+            return evaluate_icv_seg(gen_conf, train_conf, test_conf)
 
     elif args.mode == '2': # testing only
         if test_conf['dataset'] == 'ADNI':
@@ -260,15 +265,142 @@ def run_evaluation_in_dataset(gen_conf, train_conf, test_conf, args):
             #     return evaluate_dentate_interposed_seg(gen_conf, train_conf, test_conf)
             # if 'interposed' in target or 'fastigial' in target:
             #     return evaluate_interposed_fastigial_seg(gen_conf, train_conf, test_conf)
-        if train_conf['dataset'] in ['tha_seg_dl']:
+        if test_conf['dataset'] in ['tha_seg_dl']:
             return evaluate_tha_seg(gen_conf, train_conf, test_conf)
-        if train_conf['dataset'] in ['sar']:
+        if test_conf['dataset'] in ['sar']:
             if gen_conf['dataset_info'][train_conf['dataset']]['trn_dim'][0] in ['axial', 'sagittal', 'coronal']:
                 return evaluate_sar_prediction_2_5D(gen_conf, train_conf, test_conf)
             else:
                 return evaluate_sar_prediction(gen_conf, train_conf, test_conf)
+        if test_conf['dataset'] in ['icv_seg_dl']:
+            return evaluate_icv_seg(gen_conf, train_conf, test_conf)
     else:
         assert True, "error: invalid mode"
+
+
+def evaluate_icv_seg(gen_conf, train_conf, test_conf):
+    args = gen_conf['args']
+    dataset = train_conf['dataset']
+    dataset_info = gen_conf['dataset_info'][dataset]
+    root_path = gen_conf['root_path']
+    data_path = gen_conf['dataset_path']
+    results_path = gen_conf['results_path']
+    mode = gen_conf['validation_mode']
+    multi_output = gen_conf['multi_output']
+    approach = train_conf['approach']
+    loss = train_conf['loss']
+    num_k_fold = train_conf['num_k_fold']
+    is_measure = test_conf['is_measure']
+    target = dataset_info['target']
+    folder_names = dataset_info['folder_names']
+    modality = dataset_info['image_modality']
+    patient_id = dataset_info['patient_id']
+    is_new_trn_label = train_conf['is_new_trn_label']
+
+    num_data = len(patient_id)
+
+    file_output_dir = os.path.join(root_path, results_path, folder_names[0])
+    if not os.path.exists(file_output_dir):
+        os.makedirs(file_output_dir)
+
+    if mode == '0':  # k-fold cross validation
+        kfold = KFold(num_k_fold, True, 1)  # StratifiedKFold, RepeatedKFold
+        trn_tst_lst = kfold.split(range(num_data))
+    elif mode == '1':  # designated training and test set (if test set is None, training only)
+        # patient id
+        trn_id_lst = [['']]
+        tst_is_lst = [[None]]
+        trn_tst_lst = zip(trn_id_lst, tst_is_lst)  # set test_patient_lst as None for only training
+    elif mode == '2': # test only # combine to mode 1
+        trn_id_lst = [[None]]
+        tst_id_lst = [[None]]   # 5th
+        trn_set_num = 5
+        trn_tst_lst = zip(trn_id_lst, tst_id_lst)
+    else:
+        raise NotImplementedError('mode ' + mode + 'does not exist')
+
+    k = 0
+    for trn_idx, tst_idx in trn_tst_lst:
+
+        if mode == '0':  # k-fold cross validation
+
+            if is_new_trn_label == 3:
+                new_trn_label = ['']
+                trn_id_lst = [patient_id[i] for i in trn_idx] + new_trn_label
+            else:
+                trn_id_lst = [patient_id[i] for i in trn_idx]
+            tst_id_lst = [patient_id[i] for i in tst_idx]
+
+            if k in []:
+                k += 1
+                continue
+
+            # set training set and test set to skip
+            skip_train_lst = ['']  # ['']
+            for skip_patient_id in skip_train_lst:
+                if skip_patient_id in trn_id_lst:
+                    trn_id_lst.remove(skip_patient_id)
+
+            skip_test_lst = ['']
+            for skip_patient_id in skip_test_lst:
+                if skip_patient_id in tst_id_lst:
+                    tst_id_lst.remove(skip_patient_id)
+
+            if len(tst_id_lst) == 0:
+                k += 1
+                continue
+        else:
+
+            if k in []:
+                k += 1
+                continue
+
+            if mode is '2':
+                k = trn_set_num - 1
+
+            trn_id_lst = trn_idx
+            tst_id_lst = tst_idx
+
+        # prepare for the files to write
+        f = prepare_files_to_write_icv(trn_id_lst, tst_id_lst, file_output_dir, approach, loss, k, mode,
+                                       args, target, multi_output)
+
+        if mode != '2':  # train the model
+            trn_img_lst, trn_lb_lst, trn_fn_lst, tst_img_lst, tst_lb_lst, tst_fn_lst = read_icv_dataset(data_path,
+                                                                                                        trn_id_lst,
+                                                                                                        tst_id_lst,
+                                                                                                        modality,
+                                                                                                        folder_names)
+            fold_num = k
+            model = train_icv_model(gen_conf, train_conf, trn_img_lst, trn_lb_lst, fold_num)
+
+        else:  # test only
+            # read the trained model
+            tst_img_lst, tst_lb_lst, tst_fn_lst = read_icv_dataset_unseen(data_path, tst_id_lst, modality, folder_names)
+
+            fold_num = k + 1
+            model = read_model(gen_conf, train_conf, fold_num)  # model filename should have 'mode_2_'
+
+        # predict the test set
+        for tst_img, tst_fn in zip(tst_img_lst, tst_fn_lst):
+            print('#' + str(k + 1) + ': processing test_patient_id - ' + tst_fn)
+
+            # inference from the learned model
+            rec_vol_crop, prob_vol_crop, test_patches = inference(gen_conf, train_conf, test_conf, tst_img, model)
+
+            # uncrop and save the segmentation result
+            save_icv_seg(gen_conf, train_conf, rec_vol_crop, prob_vol_crop, tst_fn, file_output_dir, fold_num)
+
+            # compute DC
+            if is_measure == 1:
+                _ = measure_icv_seg(gen_conf, train_conf, tst_fn, file_output_dir, fold_num)
+
+            del test_patches
+
+        k += 1
+        f.close()
+
+    return True
 
 
 def evaluate_using_training_testing_split(gen_conf, train_conf):
@@ -1762,6 +1894,31 @@ def prepare_files_to_write(train_patient_lst, test_patient_lst, file_output_dir,
     return f
 
 
+def prepare_files_to_write_icv(train_patient_lst, test_patient_lst, file_output_dir, approach, loss, k, mode, args,
+                               target, multi_output):
+
+    if multi_output == 1:
+        loss=loss[0]
+
+    for seg_label in target:
+        measure_pkl_filepath = file_output_dir + '/' + 'mode_' + mode + '_#' + str(k + 1) + '_' + 'measurement_' + \
+                               approach + '_' + loss + '_' + seg_label + '_seg.pkl'
+
+        if os.path.exists(measure_pkl_filepath):
+            os.remove(measure_pkl_filepath)
+
+    k_fold_mode_filepath = file_output_dir + '/' + 'mode_' + mode + '_#'+ str(k + 1) + '_' + \
+                           'training_test_patient_id_' + approach + '_' + loss + '.txt'
+    if os.path.exists(k_fold_mode_filepath):
+        os.remove(k_fold_mode_filepath)
+
+    k_fold_patient_list = '#' + str(k + 1) + '\ntrain sets: %s \ntest sets: %s \nparameter sets: %s' \
+                          % (train_patient_lst, test_patient_lst, args)
+
+    f = ioutils.create_log(k_fold_mode_filepath, k_fold_patient_list, is_debug=1)
+
+    return f
+
 
 def prepare_files_to_write_dcn(train_patient_lst, test_patient_lst, file_output_dir, approach, loss, k, mode, args,
                                target, multi_output):
@@ -2122,6 +2279,47 @@ def train_model(
     return model, cur_epochs, metric_best, mean, std
 
 
+def train_icv_model(gen_conf, train_conf, img_lst, lb_lst, case_name):
+    use_saved_patches = train_conf['use_saved_patches']
+    num_epochs = train_conf['num_epochs']
+    model = None
+
+    if num_epochs > 0:
+        trn_idx, val_idx = split_train_val(range(len(img_lst)), train_conf['validation_split'])
+        trn_img_lst = [img_lst[i] for i in trn_idx]
+        trn_lb_lst = [lb_lst[i] for i in trn_idx]
+        val_img_lst = [img_lst[i] for i in val_idx]
+        val_lb_lst = [lb_lst[i] for i in val_idx]
+
+        if use_saved_patches is True:
+            train_data = read_patches(gen_conf, train_conf, case_name)
+        else:
+            train_data = []
+
+        if not train_data:
+            print('Building training samples (patches)...')
+            x_train, y_train = build_training_set(gen_conf, train_conf, trn_img_lst, trn_lb_lst)
+            x_val, y_val = build_training_set(gen_conf, train_conf, val_img_lst, val_lb_lst)
+
+            train_data = [x_train, y_train, x_val, y_val]
+            if use_saved_patches is True:
+                save_patches(gen_conf, train_conf, train_data, case_name)
+                print('Saved training samples (patches)')
+        else:
+            x_train = train_data[0]
+            y_train = train_data[1]
+            x_val = train_data[2]
+            y_val = train_data[3]
+            print('Loaded training samples (patches')
+
+        callbacks = generate_callbacks(gen_conf, train_conf, case_name)
+        _, _ = __train_icv_model(gen_conf, train_conf, x_train, y_train, x_val, y_val, callbacks)
+
+        model = read_model(gen_conf, train_conf, case_name)
+
+    return model
+
+
 def train_sar_model(gen_conf, train_conf, train_src_data, train_sar_data, case_name):
     dataset_info = gen_conf['dataset_info'][train_conf['dataset']]
     use_saved_patches = train_conf['use_saved_patches']
@@ -2368,6 +2566,129 @@ def train_sar_model_2_5D(gen_conf, train_conf, train_src_data, train_sar_data, g
             model.append(generator)
 
     return model, cur_epochs, metric_best, mean, std, g_encoder_ch
+
+
+def __train_icv_model(gen_conf, train_conf, x_train, y_train, x_val, y_val, callbacks):
+    dataset = train_conf['dataset']
+    data_augment = train_conf['data_augment']
+    is_continue = train_conf['continue_tr']
+    is_shuffle = train_conf['shuffle']
+    metric_opt = train_conf['metric']
+    batch_size = train_conf['batch_size'] # default
+    is_oversampling = train_conf['oversampling']
+
+    print('Generating a model to be trained...')
+    model = generate_model(gen_conf, train_conf)
+
+    if is_continue == 1:
+        model_filename = load_saved_model_filename(gen_conf, train_conf, 'pre_trained')
+        if os.path.isfile(model_filename):
+            #model = load_model(model_filename)
+            print('Loading saved weights from a trained model (%s)' % model_filename)
+            # If `by_name` is True, weights are loaded into layers only if they share the same name.
+            # This is useful for fine-tuning or transfer-learning models where some of the layers have changed.
+            #model.load_weights(model_filename, by_name=True)
+            model.load_weights(model_filename)
+        else:
+            print('No Found a trained model in the path (%s). Newly starting training...' % model_filename)
+
+    if data_augment == 1: # mixup
+        training_generator = MixupGenerator(x_train, y_train, batch_size, alpha=0.2)()
+        model_fit = model.fit_generator(generator=training_generator,
+                            steps_per_epoch=x_train.shape[0] // batch_size,
+                            epochs=train_conf['num_epochs'],
+                            validation_data=(x_val, y_val),
+                            verbose=train_conf['verbose'],
+                            callbacks=callbacks, shuffle=is_shuffle)
+
+    elif data_augment == 2: #datagen in keras
+        datagen = ImageDataGenerator(
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            channel_shift_range=0.1,
+            horizontal_flip=True)
+
+        model_fit = model.fit_generator(datagen.flow(x_train, y_train, batch_size),
+                            steps_per_epoch=x_train.shape[0] // batch_size,
+                            epochs=train_conf['num_epochs'],
+                            validation_data=(x_val, y_val),
+                            verbose=train_conf['verbose'],
+                            callbacks=callbacks, shuffle=is_shuffle)
+
+    elif data_augment == 3: #mixup + datagen
+        datagen = ImageDataGenerator(
+            width_shift_range=0.1,
+            height_shift_range=0.1,
+            channel_shift_range=0.1,
+            horizontal_flip=True)
+
+        training_generator = MixupGenerator(x_train, y_train, batch_size, alpha=0.2, datagen=datagen)()
+        model_fit = model.fit_generator(generator=training_generator,
+                            steps_per_epoch=x_train.shape[0] // batch_size,
+                            epochs=train_conf['num_epochs'],
+                            validation_data=(x_val, y_val),
+                            verbose=train_conf['verbose'],
+                            callbacks=callbacks, shuffle=is_shuffle)
+
+    else: # no data augmentation
+        if is_oversampling == 1:
+            from imblearn.keras import BalancedBatchGenerator
+            from imblearn.over_sampling import SMOTE, ADASYN, SVMSMOTE
+            patch_shape = train_conf['patch_shape']
+            #num_classes = gen_conf['num_classes']
+            num_modality = len(gen_conf['dataset_info'][train_conf['dataset']]['image_modality'])
+
+            print(x_train.shape)
+            print(y_train.shape)
+
+            sm = SMOTE()
+            x_train_sampled, y_train_sampled = [], []
+            x_train = x_train.reshape(x_train.shape[0], np.prod(patch_shape), num_modality)
+            for i in range(x_train.shape[0]):
+                x_train_tr, y_train_tr = sm.fit_resample(x_train[i], y_train[i])
+                x_train_sampled.append(x_train_tr)
+                y_train_sampled.append(y_train_tr)
+                print(x_train_tr.shape)
+                print(y_train_tr.shape)
+
+            model_fit = model.fit(
+                x_train_sampled, y_train_sampled, batch_size=batch_size,
+                epochs=train_conf['num_epochs'],
+                validation_data=(x_val, y_val),
+                verbose=train_conf['verbose'],
+                callbacks=callbacks, shuffle=is_shuffle)
+
+            # x_train = x_train.reshape(x_train.shape[0]*np.prod(patch_shape), num_modality)
+            # y_train = y_train.reshape(y_train.shape[0]*np.prod(patch_shape), num_classes)
+            # print(x_train.shape)
+            # print(y_train.shape)
+            #
+            # training_generator = BalancedBatchGenerator(x_train, y_train, sampler=SVMSMOTE(),
+            #                                             batch_size=batch_size*np.prod(patch_shape))
+            # model_fit = model.fit_generator(generator=training_generator,
+            #                                 steps_per_epoch=x_train.shape[0] // batch_size,
+            #                                 epochs=train_conf['num_epochs'],
+            #                                 validation_data=(x_val, y_val),
+            #                                 verbose=train_conf['verbose'],
+            #                                 callbacks=callbacks, shuffle=is_shuffle)
+        else:
+            model_fit = model.fit(
+                x_train, y_train, batch_size=batch_size,
+                epochs=train_conf['num_epochs'],
+                validation_data=(x_val, y_val),
+                verbose=train_conf['verbose'],
+                callbacks=callbacks, shuffle=is_shuffle)
+
+    cur_epochs = len(model_fit.history['loss'])
+    metric_best = None
+
+    metric = model_fit.history['val_' + metric_opt]
+    if metric_opt == 'loss':
+        metric_best = np.min(metric)
+    else:
+        metric_best = np.max(metric)
+
+    return cur_epochs, metric_best
 
 
 def __train_model(gen_conf, train_conf, x_train, y_train, x_val, y_val, callbacks):
@@ -5931,17 +6252,10 @@ def inference(gen_conf, train_conf, test_conf, test_vol, trained_model):
     output_shape = test_conf['output_shape']
     extraction_step = test_conf['extraction_step']
     dataset_info = gen_conf['dataset_info'][dataset]
-    approach = train_conf['approach']
     multi_output = gen_conf['multi_output']
     normalized_range_min = dataset_info['normalized_range_min']
     normalized_range_max = dataset_info['normalized_range_max']
-    normalized_range = [normalized_range_min, normalized_range_max]
     bg_value = normalized_range_min
-    # if test_vol_size[1] < output_shape[0] or test_vol_size[2] < output_shape[1] or test_vol_size[3] \
-    #         < output_shape[2]:
-    #     output_shape_real = test_vol_size[1:4]
-    # else:
-    #     output_shape_real = output_shape
 
     test_vol_org_size = test_vol[0].shape
     print(test_vol_org_size)
@@ -5952,7 +6266,6 @@ def inference(gen_conf, train_conf, test_conf, test_vol, trained_model):
             pad_size_total[dim] = np.ceil((output_shape[dim] - test_vol_org_size[dim+1]) / 2)
 
     # add zeros with same size to both side
-    #if patch_shape != output_shape_real:
     if np.sum(pad_size_total) != 0:
         pad_size = ()
         for dim in range(dimension):
@@ -5983,16 +6296,13 @@ def inference(gen_conf, train_conf, test_conf, test_vol, trained_model):
     test_vol_size = test_vol_pad.shape
     print(test_vol_size)
 
-    #test_vol_crop_array = np.zeros((1, num_modality) + test_vol_pad.shape[1:4])
     test_vol_crop_array = np.zeros((1, test_vol_pad.shape[0]) + test_vol_pad.shape[1:4])
     test_vol_crop_array[0] = test_vol_pad
     print(test_vol_crop_array[0].shape)
 
     x_test = build_testing_set(gen_conf, test_conf, test_vol_crop_array)
 
-    #gen_conf['dataset_info'][dataset]['size'] = test_vol_crop_array[0].shape[1:4]  # output image size
     gen_conf['dataset_info'][dataset]['size'] = test_vol_pad_extra.shape[1:4]  # output image size
-    # rec_vol = test_model(gen_conf, train_conf, x_test, model)
     rec_vol, prob_vol = test_model_modified(gen_conf, train_conf, test_conf, x_test, trained_model)
     if multi_output == 1:
         for r in rec_vol:
@@ -6005,8 +6315,6 @@ def inference(gen_conf, train_conf, test_conf, test_vol, trained_model):
 
     # re-crop zero-padded vol
     if np.sum(pad_size_total) != 0:
-    #if patch_shape != output_shape_real:
-    # org_size = [test_vol_size[1], test_vol_size[2], test_vol_size[3]]
         start_ind = np.zeros(dimension).astype(int)
         end_ind = np.zeros(dimension).astype(int)
         for dim in range(dimension):
@@ -6025,10 +6333,6 @@ def inference(gen_conf, train_conf, test_conf, test_vol, trained_model):
         else:
             rec_vol_crop = rec_vol[start_ind[0]:end_ind[0], start_ind[1]:end_ind[1], start_ind[2]:end_ind[2]]
             prob_vol_crop = prob_vol[start_ind[0]:end_ind[0], start_ind[1]:end_ind[1], start_ind[2]:end_ind[2]]
-
-        # rec_vol_crop = rec_vol[org_size[0]:org_size[0] * 2, org_size[1]:org_size[1] * 2, org_size[2]:org_size[2] * 2]
-        # prob_vol_crop = prob_vol[org_size[0]:org_size[0] * 2, org_size[1]:org_size[1] * 2,
-        #                 org_size[2]:org_size[2] * 2]
     else:
         rec_vol_crop = rec_vol
         prob_vol_crop = prob_vol
@@ -6396,6 +6700,82 @@ def measure(gen_conf, train_conf, test_conf, idx):
         raise NotImplementedError('Unknown approach for measuring')
 
     return DC
+
+
+def measure_icv_seg(gen_conf, train_conf, tst_fn, file_output_dir, fold_num):
+
+    import pandas as pd
+    import pickle
+
+    dataset = train_conf['dataset']
+    dataset_path = gen_conf['dataset_path']
+
+    gt_filepath = os.path.join(dataset_path, 'Y_conform', tst_fn + '.nii.gz')
+    seg_filepath = os.path.join(file_output_dir, tst_fn, 'icv_seg.nii.gz')
+
+    print(gt_filepath)
+    print(seg_filepath)
+
+    if os.path.exists(gt_filepath):
+        gt_data = read_volume_data(gt_filepath)
+        gt_image = gt_data.get_data()
+        if np.size(np.shape(gt_image)) == 4:
+            gt_image_f = gt_image[:, :, :, 0]
+        else:
+            gt_image_f = gt_image
+        gt_image_vox_size = gt_data.header.get_zooms()
+        gt_vol = len(np.where(gt_image_f == 1)[0]) * gt_image_vox_size[0] * gt_image_vox_size[1] * \
+                    gt_image_vox_size[2]
+    else:
+        print('No found: ' + gt_filepath)
+        gt_image_vox_size = None
+        gt_vol = None
+        gt_image_f = None
+
+    if os.path.exists(seg_filepath):
+        seg_data = read_volume_data(seg_filepath)
+        seg_image = seg_data.get_data()
+        if np.size(np.shape(seg_image)) == 4:
+            seg_image_f = seg_image[:, :, :, 0]
+        else:
+            seg_image_f = seg_image
+        seg_image_vox_size = seg_data.header.get_zooms()
+        seg_vol = len(np.where(seg_image_f == 1)[0]) * seg_image_vox_size[0] * seg_image_vox_size[1] * \
+                  seg_image_vox_size[2]
+    else:
+        print('No found: ' + seg_filepath)
+        seg_image_vox_size = None
+        seg_vol = None
+        seg_image_f = None
+
+    if gt_image_vox_size is None or seg_image_vox_size is None:
+        dc = None
+    else:
+        if gt_image_vox_size[0:3] != seg_image_vox_size[0:3]:
+            print('voxel size mismatches: manual - ' + str(gt_image_vox_size), ', seg - ' + str(seg_image_vox_size))
+            dc = None
+        else:
+            dc = dice(gt_image_f, seg_image_f)
+
+    # Save results in dataframe as pkl
+    measure_pkl_filepath = os.path.join(file_output_dir, tst_fn, 'measurement_%s.pkl' % fold_num)
+    patient_results = {'DC': dc, 'VOL': seg_vol, 'VOL_manual': gt_vol}
+    columns_name_lst = ['DC', 'VOL', 'VOL_manual']
+    patient_results_df = pd.DataFrame(patient_results, columns=columns_name_lst)
+    patient_results_df.insert(0, 'patient_id', [tst_fn])
+
+    if os.path.exists(measure_pkl_filepath):
+        with open(measure_pkl_filepath, 'rb') as handle:
+            df_total = pickle.load(handle)
+            df_total = pd.concat([df_total, patient_results_df])
+    else:
+        df_total = patient_results_df
+
+    df_total.to_pickle(measure_pkl_filepath)
+    print(df_total.sort_values(['patient_id'], ascending=[1]))
+    print(df_total.describe(percentiles=[0.25, 0.5, 0.75, 0.9]))
+
+    return df_total
 
 
 def measure_thalamus(gen_conf, train_conf, test_conf, idx, seg_label, k, mode):

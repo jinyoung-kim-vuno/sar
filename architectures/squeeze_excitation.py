@@ -1,8 +1,9 @@
-from keras.layers import GlobalAveragePooling2D, GlobalAveragePooling3D, Reshape, Dense, multiply, \
+from tensorflow.keras.layers import GlobalAveragePooling2D, GlobalAveragePooling3D, Reshape, Dense, multiply, \
     Permute, Conv2D, Conv3D, add, concatenate, BatchNormalization
-from keras import backend as K
+from tensorflow.keras import backend as K
 
-K.set_image_dim_ordering('th')
+K.set_image_data_format('channels_first')
+#K.set_image_dim_ordering('th')
 
 def squeeze_excite_block2D(input, kernel_init, ratio=16):
     ''' Create a squeeze-excite block

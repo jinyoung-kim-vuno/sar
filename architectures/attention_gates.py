@@ -1,10 +1,9 @@
-from keras import backend as K
-from keras.layers import Activation, Add, Multiply, UpSampling2D, UpSampling3D
-from keras.layers.convolutional import Conv2D, Conv2DTranspose
-from keras.layers.convolutional import Conv3D, Conv3DTranspose
-from keras.layers.normalization import BatchNormalization
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Activation, Add, Multiply, UpSampling2D, UpSampling3D, Conv2D, Conv2DTranspose, \
+    Conv3D, Conv3DTranspose, BatchNormalization
 
-K.set_image_dim_ordering('th')
+K.set_image_data_format('channels_first')
+#K.set_image_dim_ordering('th')
 
 
 def grid_attention(dimension, input, gate, in_channels, out_channels, mode, kernel_init):

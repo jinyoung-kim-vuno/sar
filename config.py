@@ -4,10 +4,10 @@ general_config = {
     'multi_output' : 0,
     'output_name' : 'dentate_seg',
     'num_classes' : 2, # 4 for brain tissue, 3 for cbct,
-    'root_path' : '/home/asaf/jinyoung/projects/', # udall
+    'root_path' : '/mnt/home/jinyoung/codes/icv_seg/',  # '/home/asaf/jinyoung/projects/', # udall
     #'root_path' : '/content/g_drive/', # colab root path
     #'dataset_path': '/home/shira-raid1/DBS_data/Cerebellum_Tools/',
-    'dataset_path': '/home/asaf/jinyoung/projects/datasets/thalamus/',
+    'dataset_path' : '', # '/home/asaf/jinyoung/projects/datasets/thalamus/',
     #'dataset_path' : 'datasets/',
     'log_path' : 'log',
     'model_path' : 'models',
@@ -363,6 +363,13 @@ general_config = {
                         '51', '52', '53', '54', '55', '56', '57', '58', '59', '60',
                         '61', '62', '63', '64', '65', '66', '67', '68', '69', '70',
                         '71', '72', '73', '74', '75', '76', '77', '78', '79', '80']
+        },
+        'icv_seg_dl': {
+            'format': 'nii.gz',
+            'image_modality': ['T1'],
+            'patient_id': ['0', '1', '2', '3', '4', '5', '6', '7'],
+            'folder_names': ['manual'],
+
         }
     }
 }
@@ -374,7 +381,7 @@ training_config = {
     'approach' : 'unet', #'approach' : 'cc_3d_fcn', unet, livianet, uresnet, fc_densenet, deepmedic, wnet, fc_capsnet, attention_unet, attention_se_fcn, fc_rna, pr_fb_net
     'dataset' : 'sar', #'dcn_seg_dl' #'3T7T', # 3T7T, 3T7T_real, 3T7T_total, 3T+7T, CBCT16, CBCT57, CT30 for training
     'data_augment': 0, # 0: offdcn_seg_dl, 1: mixup, 2. datagen, 3: mixup + datagen
-    'dimension' : 2,
+    'dimension' : 3,
     'extraction_step' : (9, 9, 9), # for thalamus #(5, 5, 5) for dentate, #(2, 2, 2) for interposed
     'attention_loss' : 0,
     'overlap_penalty_loss' : 0,
@@ -393,7 +400,7 @@ training_config = {
     'random_seed_num' : '1',
     'output_shape' : (32, 32, 32), #for thalamus, dentate, interposed (48, 48, 48), #(32, 32, 32), #(32,32,32), #(9, 9, 9), #(32, 32, 32), #(9, 9, 9),
     'patch_shape' : (32, 32, 32), #for thalamus, dentate, interposed (48, 48, 48), #(32, 32, 32), #(9, 9, 9), #(32, 32, 32),
-    'bg_discard_percentage' : 0, # 0 for dentate,interposed,thalamus segmentation, 0.2 for brain tissue segmentation
+    'bg_discard_percentage': 0.2,  # 0 for dentate,interposed,thalamus segmentation, 0.2 for brain tissue segmentation
     'patience' : 2, #1
     'num_k_fold': 5,
     'validation_split' : 0.20,
@@ -406,7 +413,7 @@ training_config = {
     'oversampling' : 0,
     'use_saved_patches' : False,
     'is_new_trn_label': 0,
-    'new_label_path': '/home/asaf/jinyoung/projects/results/dcn_seg_dl/dentate_interposed_dilated_fc_densenet_dual_output_only_dentate_only_interposed_softmax_attn_loss_0_1_overlap_loss_updated_0_5_train_29_test_32',
+    'new_label_path': '',
     'continue_tr' : 0,
     'is_fsl': 1,
     'GAN' :{

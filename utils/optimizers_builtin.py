@@ -1,4 +1,4 @@
-from keras.optimizers import SGD, RMSprop, Adam, Adadelta, Adagrad, Adamax, Nadam
+from tensorflow.keras.optimizers import SGD, RMSprop, Adam, Adadelta, Adagrad, Adamax, Nadam
 from architectures.weightnorm import SGDWithWeightnorm, AdamWithWeightnorm
 
 

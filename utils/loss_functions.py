@@ -1,13 +1,12 @@
 
-from keras import backend as K
-from keras.layers import Reshape, MaxPooling2D, MaxPooling3D
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Reshape, MaxPooling2D, MaxPooling3D
 import numpy as np
 from niftynet.layer.loss_segmentation import LossFunction
 from utils.mathutils import measure_msd
 import tensorflow as tf
 from tensorflow.python.ops import array_ops
 from tensorflow.contrib.distributions import percentile
-
 
 
 def weighted_categorical_crossentropy(weights):

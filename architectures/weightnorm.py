@@ -1,5 +1,5 @@
-from keras import backend as K
-from keras.optimizers import SGD,Adam
+from tensorflow.keras import backend as K
+from tensorflow.keras.optimizers import SGD,Adam
 import tensorflow as tf
 
 # adapted from keras.optimizers.SGD

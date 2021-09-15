@@ -15,10 +15,10 @@ def grid_attention(dimension, input, g_f, gate, attn_opt, mode):
     sub_sample_factor = (2, 2) if dimension == 2 else (2, 2, 2)
 
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    gate_channels = gate._keras_shape[channel_axis]
-    #input_channels = input._keras_shape[channel_axis]
-    #g_f_channels = g_f._keras_shape[channel_axis]
-    g_f_crop_size = np.int((g_f._keras_shape[2] * sub_sample_factor[0] - g_f._keras_shape[2]) / 2)
+    gate_channels = gate.shape[channel_axis]
+    #input_channels = input.shape[channel_axis]
+    #g_f_channels = g_f.shape[channel_axis]
+    g_f_crop_size = np.int((g_f.shape[2] * sub_sample_factor[0] - g_f._keras_shape[2]) / 2)
 
     # Define the operation
     if mode == 'concatenation':

@@ -1,6 +1,52 @@
 #!/bin/bash
 
 ##!/usr/bin/env bash
+# for icv segmentation
+
+mode='0' # 0. training + testing (n-fold cross-validation), 1. training + testing (for designated cases) , 2. testing
+gpu_id='0' # specific gpu id ('0,1') or -1: all available GPUs, -2: cpu only
+num_of_gpu='1' # only if gpu_id==-1
+num_classes='2' # 2 # 3
+multi_output='0'
+output_name='icv_seg'
+attention_loss='0'
+overlap_penalty_loss='0'
+loss='tversky_focal' #implemented: dc, tversky, tversky_focal, tversky_focal_multiclass, dice_focal, focal  #niftynet built-in: 'Tversky' #Dice #Dice_Dense_NS # sparse_categorical_crossentropy for integer target, categorical_crossentropy for one-hot encoded input, CrossEntropy
+approach='fc_densenet' #'multires_net' #unet #livianet # fc_densenet_dilated # deepmedic # densenet_dilated
+dataset='icv_seg_dl' #'tha_seg_dl' #dcn_seg_dl
+preprocess_trn='2'
+preprocess_tst='2'
+num_k_fold='8' #LOO for 8 manual datasets
+batch_size='8'
+num_epochs='50' #'20'
+patience='10' #'2'
+optimizer='Adam'
+initial_lr='0.001'
+is_set_random_seed='0'
+random_seed_num='None'
+metric='acc' #loss #acc #acc_dc
+activation='softmax' # last layer activation - sigmoid: independent (probability) multi-label training, softmax: dependent single label training
+target='icv' #'tha' #dentate # dentate,interposed # 'icv'
+image_modality='T1' #'B0,T1,LP,FA' #'B0' #'B0,T1,LP,FA'
+trn_patch_size='32,32,32' #'32,32,32'
+trn_output_size='32,32,32'
+trn_step_size='16,16,16' #
+tst_patch_size='32,32,32' #'32,32,32'
+tst_output_size='32,32,32'
+tst_step_size='16,16,16'
+crop_margin='5,5,5'
+bg_discard_percentage='0.2'
+normalized_range_min='0.0'
+normalized_range_max='1.0'
+bg_value='0'
+threshold='0' #0.5
+continue_tr='0'
+is_unseen_case='0'
+is_measure='1'
+is_new_trn_label='0' # 0: 29 manual labels, 1: 31 segmentation using a proposed network, 2: suit labels, 3: 29 manual labels + 31 seg (self-training?)
+new_label_path=''
+folder_names='manual' # if is_unseen_case on, then data name for test set
+dataset_path='/mnt/home/jinyoung/data/icv_seg/dataset2.hdf5'
 
 
 ## for GAN: dentate/interposed (dilated densenet wo decoder)
@@ -82,101 +128,101 @@
 #d_tst_output_size='32,32,32' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
 #d_tst_step_size='9,9,9'
 
-
-# for conditional GAN: SAR prediction
-mode='1' # 0. training + testing (n-fold cross-validation), 1. training + testing (for designated cases) , 2. testing
-gpu_id='0,1' #'0,1' # specific gpu id ('0,1') or -1: all available GPUs, -2: cpu only
-num_of_gpu='2' # only if gpu_id==-1
-dataset='sar' #'tha_seg_dl' #dcn_seg_dl
-preprocess_trn='2'
-preprocess_tst='2'
-num_k_fold='5' #5
-batch_size='8'
-num_epochs='100' #'50' #'20'
-patience='50' #'20' #'2' # 0: save the model every epoch without considering the minimum g_loss
-num_classes='1' # 2 # 3
-multi_output='0'
-output_name='sar_pred' # dentate_interposed_seg for single output
-attention_loss='0'
-overlap_penalty_loss='0'
-metric='loss_total' #loss #acc #acc_dc
-loss='mae' #implemented: dc, tversky, tversky_focal, tversky_focal_multiclass, dice_focal, focal  #niftynet built-in: 'Tversky' #Dice #Dice_Dense_NS # sparse_categorical_crossentropy for integer target, categorical_crossentropy for one-hot encoded input, CrossEntropy
-activation='tanh' #'tanh'
-is_set_random_seed='0' # must be off for sar prediction due to randomly chosen training/validation samples and update_image_pool
-random_seed_num='1'
-exclusive_train='0' #if exclusive_train is '1', during training, remove designated label
-exclude_label_num='2,1' #exclude_label_num: 0. bg, 1.dentate, 2. interposed for exclusive training or multi-output, -1: nothing
-target='sar' #'tha' #dentate # dentate,interposed
-image_modality='B1_mag,Epsilon,Rho,Sigma' #'B1_real,B1_imag,Sigma' #'B1_mag' #'B1_real,B1_imag' #'B1','Epsilon','Rho','Sigma'
-augment_sar_data='0,1' # (on or off, number of generation (min. :2))
-trn_dim='sagittal,axial' # '': 3d, 'axial,coronal,sagittal': 2.5D
-ensemble_weight='0.2,0.8' #'0.2,0.2,0.6' # 0.6,0.2,0.2 for axial,sagittal,coronal slices
-bg_discard_percentage='0'
-normalized_range_min='-1.0'
-normalized_range_max='1.0'
-trn_patch_size='160,160,80' # 32,32,32
-trn_output_size='160,160,80' # 32,32,32
-trn_step_size='0,0,0' # 16,16,16
-tst_patch_size='160,160,80' # 32,32,32
-tst_output_size='160,160,80' # 32,32,32
-tst_step_size='0,0,0' # 16,16,16
-importance_spl='0' # not complete
-oversampling='0' # not complete
-threshold='0' #0.5
-continue_tr='0'
-is_unseen_case='0'
-is_measure='1'
-is_trn_inference='0'
-is_new_trn_label='0'
-new_label_path='None'
-folder_names='trn#24_7_duke+louis+austinman+austinwoman_trn_ella_tst' #'trn#24_7_ella+louis+austinman+austinwoman_trn_duke_tst' #'trn#24_8_ella+louis+austinman_trn_duke_tst' #'trn#24_7_duke+ella+louis_trn_austinman_tst' #'trn#24_7_ella+louis_trn_duke_tst' #'trn#24_7_duke+ella_trn_louis_tst' #'trn#24_7_duke+ella+louis_trn_austinman_tst' #'trn#24_7_ella+louis+austinman_trn_duke_tst' #'trn#24_8_duke+louis_trn_ella_tst' #'trn#24_8_ella+louis_trn_duke_tst' #'trn#24_7_duke+louis+austinman_trn_ella_tst' #'trn#24_8_duke+ella_trn_louis_tst' #'trn#24_7_duke+ella_trn_louis_tst'  #'trn#24_7_ella_40_test_duke_40_train' #'trn#24_7_duke_40_test_ella_40_train' #'sar_prediction_baseline_test_trn#24_7' #'sar_prediction_baseline_test_b1+_real_imag_sigma_fc_dense_contextnet_with_perceptual_peak_negative_loss_data_2_5D_data_aug_2_fixed_debug' #'sar_prediction_baseline_test_b1+_real_imag_fc_dense_contextnet_with_perceptual_peak_negative_loss_data_2_5D_data_aug_3' # #
-dataset_path='/home/asaf/jinyoung/projects/datasets/sar/'
-crop_margin='2,3,3,4,-20,-12' # for duke, ella, louis, austinman, austinwoman  #'2,3,2,3,-20,-12' #'6,7,6,7,-20,-12' #'6,7,6,6,-20,-12' # for duke, ella, louis #'11,10,11,12,-21,-14' for duke and ella  #'3,3,3,3,21,20' # crop size in each side (e.g., 0,0,0,0,40,40: no crop in x and y slices, crop 40 slices in each side of z axis
-## gan
-approach='cgan_sar_multi_task' #'cgan_sar_multi_task' #'cgan_sar' #'cyclegan_sar2' #'multires_net' #unet #livianet # fc_densenet_dilated # deepmedic # densenet_dilated # attention_unet #cenet
-# feedback network
-f_use='1' # on or off
-f_num_loop='3' #the number of feedback loops, if this is more than 5, there may be gradient explosion ('nan' loss) during training)
-f_spectral_norm='1'
-# few-shot model transfer
-is_fsl='0' # on: few-shot learning (sar distribution/sar peak transfer)
-num_model_samples='3'
-# generator
-g_network='fc_dense_contextnet' #'u_net' #u_net #fc_dense_contextnet #dilated_densenet
-g_optimizer='Adam' #'Adam', 'AdamWithWeightnorm'
-g_initial_lr='0.0001' #'0.0001' # '0.00005' according to feedback adversarial network (cvpr19) # others: '0.001'
-g_num_classes='1' # 2 # 3
-g_multi_output='0'
-g_output_name='sar_pred' # dentate_interposed_seg for single output
-g_attention_loss='0'
-g_overlap_penalty_loss='0'
-g_lamda='1.0,0.01,0.01,0.1,0.1,0.1,0.1,0.1,0.01'  #'1.0,0.5,0.3,0.1,0.001,0.001' #1.0,1.0,0.5,0.3,0.1,0.001,0.001 # generator L1 loss, perceptual losses (for 1st, 2nd, and 3rd layers), peak value loss, and negative value loss
-g_adv_loss_weight='0.1' # weight for adversarial loss (cgan: 0.01)
-g_metric='loss_total' #loss #acc #acc_dc
-g_loss='mae' #implemented: dc, tversky, tversky_focal, tversky_focal_multiclass, dice_focal, focal  #niftynet built-in: 'Tversky' #Dice #Dice_Dense_NS # sparse_categorical_crossentropy for integer target, categorical_crossentropy for one-hot encoded input, CrossEntropy
-g_activation='tanh' # 'linear 'tanh' # last layer activation - sigmoid: independent (probability) multi-label training, softmax: dependent single label training
-g_spectral_norm='0'
-g_trn_patch_size='160,160,80' #for livianet 50,50,50 (32,32,32; 27,27,27); for deepmedic 64,64,64 (48,48,48);
-g_trn_output_size='160,160,80' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
-g_trn_step_size='0,0,0'
-g_tst_patch_size='160,160,80' #for livianet 50,50,50 (32,32,32; 27,27,27); for deepmedic 64,64,64 (48,48,48);
-g_tst_output_size='160,160,80' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
-g_tst_step_size='0,0,0'
-# discriminator
-d_network='u_net' #'u_net' #'patch_gan' #'dilated_densenet' #patch_gan #dilated_densenet #u_net
-d_optimizer='Adam' #'Adam'
-d_initial_lr='0.0001' # for cyclegan: '0.0001' according to feedback adversarial network (cvpr19) # others: '0.001'
-d_num_classes='1'
-d_metric='loss_total' #loss #acc #acc_dc
-d_loss='mse' #'mse' #'binary_crossentropy' 'mse'
-d_activation='linear'  #'linear' for mse loss #'sigmoid'
-d_spectral_norm='1'
-d_trn_patch_size='160,160,80' #for livianet 50,50,50 (32,32,32; 27,27,27); for deepmedic 64,64,64 (48,48,48);
-d_trn_output_size='160,160,80' #'20,20,10' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
-d_trn_step_size='0,0,0'
-d_tst_patch_size='160,160,80' #for livianet 50,50,50 (32,32,32; 27,27,27); for deepmedic 64,64,64 (48,48,48);
-d_tst_output_size='160,160,80' #'20,20,10' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
-d_tst_step_size='0,0,0'
+#
+## for conditional GAN: SAR prediction
+#mode='1' # 0. training + testing (n-fold cross-validation), 1. training + testing (for designated cases) , 2. testing
+#gpu_id='0,1' #'0,1' # specific gpu id ('0,1') or -1: all available GPUs, -2: cpu only
+#num_of_gpu='2' # only if gpu_id==-1
+#dataset='sar' #'tha_seg_dl' #dcn_seg_dl
+#preprocess_trn='2'
+#preprocess_tst='2'
+#num_k_fold='5' #5
+#batch_size='8'
+#num_epochs='100' #'50' #'20'
+#patience='50' #'20' #'2' # 0: save the model every epoch without considering the minimum g_loss
+#num_classes='1' # 2 # 3
+#multi_output='0'
+#output_name='sar_pred' # dentate_interposed_seg for single output
+#attention_loss='0'
+#overlap_penalty_loss='0'
+#metric='loss_total' #loss #acc #acc_dc
+#loss='mae' #implemented: dc, tversky, tversky_focal, tversky_focal_multiclass, dice_focal, focal  #niftynet built-in: 'Tversky' #Dice #Dice_Dense_NS # sparse_categorical_crossentropy for integer target, categorical_crossentropy for one-hot encoded input, CrossEntropy
+#activation='tanh' #'tanh'
+#is_set_random_seed='0' # must be off for sar prediction due to randomly chosen training/validation samples and update_image_pool
+#random_seed_num='1'
+#exclusive_train='0' #if exclusive_train is '1', during training, remove designated label
+#exclude_label_num='2,1' #exclude_label_num: 0. bg, 1.dentate, 2. interposed for exclusive training or multi-output, -1: nothing
+#target='sar' #'tha' #dentate # dentate,interposed
+#image_modality='B1_mag,Epsilon,Rho,Sigma' #'B1_real,B1_imag,Sigma' #'B1_mag' #'B1_real,B1_imag' #'B1','Epsilon','Rho','Sigma'
+#augment_sar_data='0,1' # (on or off, number of generation (min. :2))
+#trn_dim='sagittal,axial' # '': 3d, 'axial,coronal,sagittal': 2.5D
+#ensemble_weight='0.2,0.8' #'0.2,0.2,0.6' # 0.6,0.2,0.2 for axial,sagittal,coronal slices
+#bg_discard_percentage='0'
+#normalized_range_min='-1.0'
+#normalized_range_max='1.0'
+#trn_patch_size='160,160,80' # 32,32,32
+#trn_output_size='160,160,80' # 32,32,32
+#trn_step_size='0,0,0' # 16,16,16
+#tst_patch_size='160,160,80' # 32,32,32
+#tst_output_size='160,160,80' # 32,32,32
+#tst_step_size='0,0,0' # 16,16,16
+#importance_spl='0' # not complete
+#oversampling='0' # not complete
+#threshold='0' #0.5
+#continue_tr='0'
+#is_unseen_case='0'
+#is_measure='1'
+#is_trn_inference='0'
+#is_new_trn_label='0'
+#new_label_path='None'
+#folder_names='trn#24_7_duke+louis+austinman+austinwoman_trn_ella_tst' #'trn#24_7_ella+louis+austinman+austinwoman_trn_duke_tst' #'trn#24_8_ella+louis+austinman_trn_duke_tst' #'trn#24_7_duke+ella+louis_trn_austinman_tst' #'trn#24_7_ella+louis_trn_duke_tst' #'trn#24_7_duke+ella_trn_louis_tst' #'trn#24_7_duke+ella+louis_trn_austinman_tst' #'trn#24_7_ella+louis+austinman_trn_duke_tst' #'trn#24_8_duke+louis_trn_ella_tst' #'trn#24_8_ella+louis_trn_duke_tst' #'trn#24_7_duke+louis+austinman_trn_ella_tst' #'trn#24_8_duke+ella_trn_louis_tst' #'trn#24_7_duke+ella_trn_louis_tst'  #'trn#24_7_ella_40_test_duke_40_train' #'trn#24_7_duke_40_test_ella_40_train' #'sar_prediction_baseline_test_trn#24_7' #'sar_prediction_baseline_test_b1+_real_imag_sigma_fc_dense_contextnet_with_perceptual_peak_negative_loss_data_2_5D_data_aug_2_fixed_debug' #'sar_prediction_baseline_test_b1+_real_imag_fc_dense_contextnet_with_perceptual_peak_negative_loss_data_2_5D_data_aug_3' # #
+#dataset_path='/home/asaf/jinyoung/projects/datasets/sar/'
+#crop_margin='2,3,3,4,-20,-12' # for duke, ella, louis, austinman, austinwoman  #'2,3,2,3,-20,-12' #'6,7,6,7,-20,-12' #'6,7,6,6,-20,-12' # for duke, ella, louis #'11,10,11,12,-21,-14' for duke and ella  #'3,3,3,3,21,20' # crop size in each side (e.g., 0,0,0,0,40,40: no crop in x and y slices, crop 40 slices in each side of z axis
+### gan
+#approach='cgan_sar_multi_task' #'cgan_sar_multi_task' #'cgan_sar' #'cyclegan_sar2' #'multires_net' #unet #livianet # fc_densenet_dilated # deepmedic # densenet_dilated # attention_unet #cenet
+## feedback network
+#f_use='1' # on or off
+#f_num_loop='3' #the number of feedback loops, if this is more than 5, there may be gradient explosion ('nan' loss) during training)
+#f_spectral_norm='1'
+## few-shot model transfer
+#is_fsl='0' # on: few-shot learning (sar distribution/sar peak transfer)
+#num_model_samples='3'
+## generator
+#g_network='fc_dense_contextnet' #'u_net' #u_net #fc_dense_contextnet #dilated_densenet
+#g_optimizer='Adam' #'Adam', 'AdamWithWeightnorm'
+#g_initial_lr='0.0001' #'0.0001' # '0.00005' according to feedback adversarial network (cvpr19) # others: '0.001'
+#g_num_classes='1' # 2 # 3
+#g_multi_output='0'
+#g_output_name='sar_pred' # dentate_interposed_seg for single output
+#g_attention_loss='0'
+#g_overlap_penalty_loss='0'
+#g_lamda='1.0,0.01,0.01,0.1,0.1,0.1,0.1,0.1,0.01'  #'1.0,0.5,0.3,0.1,0.001,0.001' #1.0,1.0,0.5,0.3,0.1,0.001,0.001 # generator L1 loss, perceptual losses (for 1st, 2nd, and 3rd layers), peak value loss, and negative value loss
+#g_adv_loss_weight='0.1' # weight for adversarial loss (cgan: 0.01)
+#g_metric='loss_total' #loss #acc #acc_dc
+#g_loss='mae' #implemented: dc, tversky, tversky_focal, tversky_focal_multiclass, dice_focal, focal  #niftynet built-in: 'Tversky' #Dice #Dice_Dense_NS # sparse_categorical_crossentropy for integer target, categorical_crossentropy for one-hot encoded input, CrossEntropy
+#g_activation='tanh' # 'linear 'tanh' # last layer activation - sigmoid: independent (probability) multi-label training, softmax: dependent single label training
+#g_spectral_norm='0'
+#g_trn_patch_size='160,160,80' #for livianet 50,50,50 (32,32,32; 27,27,27); for deepmedic 64,64,64 (48,48,48);
+#g_trn_output_size='160,160,80' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
+#g_trn_step_size='0,0,0'
+#g_tst_patch_size='160,160,80' #for livianet 50,50,50 (32,32,32; 27,27,27); for deepmedic 64,64,64 (48,48,48);
+#g_tst_output_size='160,160,80' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
+#g_tst_step_size='0,0,0'
+## discriminator
+#d_network='u_net' #'u_net' #'patch_gan' #'dilated_densenet' #patch_gan #dilated_densenet #u_net
+#d_optimizer='Adam' #'Adam'
+#d_initial_lr='0.0001' # for cyclegan: '0.0001' according to feedback adversarial network (cvpr19) # others: '0.001'
+#d_num_classes='1'
+#d_metric='loss_total' #loss #acc #acc_dc
+#d_loss='mse' #'mse' #'binary_crossentropy' 'mse'
+#d_activation='linear'  #'linear' for mse loss #'sigmoid'
+#d_spectral_norm='1'
+#d_trn_patch_size='160,160,80' #for livianet 50,50,50 (32,32,32; 27,27,27); for deepmedic 64,64,64 (48,48,48);
+#d_trn_output_size='160,160,80' #'20,20,10' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
+#d_trn_step_size='0,0,0'
+#d_tst_patch_size='160,160,80' #for livianet 50,50,50 (32,32,32; 27,27,27); for deepmedic 64,64,64 (48,48,48);
+#d_tst_output_size='160,160,80' #'20,20,10' #for livianet 32,32,32 (14,14,14; 9,9,9); for deepmedic 32,32,32 (16,16,16);
+#d_tst_step_size='0,0,0'
 
 
 
@@ -932,6 +978,31 @@ then
     export PYTHONHASHSEED=0 # to make python 3 code reproducible by deterministic hashing
 fi
 
+echo python3 run.py --mode $mode --gpu_id $gpu_id --num_of_gpu $num_of_gpu --output_name $output_name \
+--approach $approach --dataset $dataset --metric $metric --loss $loss \
+--preprocess_trn $preprocess_trn --preprocess_tst $preprocess_tst --num_k_fold $num_k_fold --batch_size $batch_size \
+--num_epochs $num_epochs --patience $patience --num_classes $num_classes \
+--multi_output $multi_output --output_name $output_name --attention_loss $attention_loss --activation $activation \
+--overlap_penalty_loss $overlap_penalty_loss --trn_patch_size $trn_patch_size --trn_output_size $trn_output_size \
+--trn_step_size $trn_step_size --tst_patch_size $tst_patch_size --tst_output_size $tst_output_size --tst_step_size $tst_step_size \
+--is_set_random_seed $is_set_random_seed --random_seed_num $random_seed_num --crop_margin $crop_margin \
+--bg_discard_percentage $bg_discard_percentage \
+--threshold $threshold --target $target --image_modality $image_modality --folder_names $folder_names  \
+--dataset_path $dataset_path --continue_tr $continue_tr --is_unseen_case $is_unseen_case --is_measure $is_measure \
+
+python3 run.py --mode $mode --gpu_id $gpu_id --num_of_gpu $num_of_gpu --output_name $output_name \
+--approach $approach --dataset $dataset --metric $metric --loss $loss \
+--preprocess_trn $preprocess_trn --preprocess_tst $preprocess_tst --num_k_fold $num_k_fold --batch_size $batch_size \
+--num_epochs $num_epochs --patience $patience --num_classes $num_classes \
+--multi_output $multi_output --output_name $output_name --attention_loss $attention_loss --activation $activation \
+--overlap_penalty_loss $overlap_penalty_loss --trn_patch_size $trn_patch_size --trn_output_size $trn_output_size \
+--trn_step_size $trn_step_size --tst_patch_size $tst_patch_size --tst_output_size $tst_output_size --tst_step_size $tst_step_size \
+--is_set_random_seed $is_set_random_seed --random_seed_num $random_seed_num --crop_margin $crop_margin \
+--bg_discard_percentage $bg_discard_percentage \
+--threshold $threshold --target $target --image_modality $image_modality --folder_names $folder_names  \
+--dataset_path $dataset_path --continue_tr $continue_tr --is_unseen_case $is_unseen_case --is_measure $is_measure \
+
+
 #echo python run.py --mode $mode --gpu_id $gpu_id --num_classes $num_classes --multi_output $multi_output \
 #--attention_loss $attention_loss --overlap_penalty_loss $overlap_penalty_loss --output_name $output_name --loss $loss \
 #--exclusive_train $exclusive_train --exclude_label_num $exclude_label_num --approach $approach --dataset $dataset \
@@ -960,53 +1031,53 @@ fi
 #--new_label_path $new_label_path
 
 
-echo python run.py --mode $mode --gpu_id $gpu_id --num_of_gpu $num_of_gpu --output_name $output_name --exclusive_train $exclusive_train \
---exclude_label_num $exclude_label_num --approach $approach --dataset $dataset --metric $metric --loss $loss \
---preprocess_trn $preprocess_trn --preprocess_tst $preprocess_tst --num_k_fold $num_k_fold --batch_size $batch_size \
---num_epochs $num_epochs --patience $patience --num_classes $num_classes \
---multi_output $multi_output --output_name $output_name --attention_loss $attention_loss --activation $activation \
---overlap_penalty_loss $overlap_penalty_loss --trn_patch_size $trn_patch_size --trn_output_size $trn_output_size \
---trn_step_size $trn_step_size --tst_patch_size $tst_patch_size --tst_output_size $tst_output_size --tst_step_size $tst_step_size \
---is_set_random_seed $is_set_random_seed --random_seed_num $random_seed_num --crop_margin $crop_margin \
---bg_discard_percentage $bg_discard_percentage --importance_spl $importance_spl --oversampling $oversampling \
---threshold $threshold --target $target --image_modality $image_modality --augment_sar_data $augment_sar_data \
---trn_dim $trn_dim --ensemble_weight $ensemble_weight --folder_names $folder_names --normalized_range_min $normalized_range_min \
---normalized_range_max $normalized_range_max --dataset_path $dataset_path --continue_tr $continue_tr --is_unseen_case $is_unseen_case --is_measure $is_measure \
---is_trn_inference $is_trn_inference --is_new_trn_label $is_new_trn_label --new_label_path $new_label_path \
---is_fsl $is_fsl --num_model_samples $num_model_samples --f_use $f_use --f_num_loop $f_num_loop --f_spectral_norm $f_spectral_norm \
---g_spectral_norm $g_spectral_norm --g_network $g_network --g_optimizer $g_optimizer --g_initial_lr $g_initial_lr --g_num_classes $g_num_classes \
---g_multi_output $g_multi_output --g_output_name $g_output_name --g_attention_loss $g_attention_loss \
---g_overlap_penalty_loss $g_overlap_penalty_loss --g_lamda $g_lamda --g_adv_loss_weight $g_adv_loss_weight \
---g_metric $g_metric --g_loss $g_loss --g_activation $g_activation --g_trn_patch_size $g_trn_patch_size \
---g_trn_output_size $g_trn_output_size --g_trn_step_size $g_trn_step_size --g_tst_patch_size $g_tst_patch_size \
---g_tst_output_size $g_tst_output_size --g_tst_step_size $g_tst_step_size \
---d_network $d_network --d_optimizer $d_optimizer --d_initial_lr $d_initial_lr --d_num_classes $d_num_classes \
---d_metric $d_metric --d_loss $d_loss --d_activation $d_activation --d_spectral_norm $d_spectral_norm --d_trn_patch_size $d_trn_patch_size \
---d_trn_output_size $d_trn_output_size --d_trn_step_size $d_trn_step_size --d_tst_patch_size $d_tst_patch_size \
---d_tst_output_size $d_tst_output_size --d_tst_step_size $d_tst_step_size
-
-
-python run.py --mode $mode --gpu_id $gpu_id --num_of_gpu $num_of_gpu --output_name $output_name --exclusive_train $exclusive_train \
---exclude_label_num $exclude_label_num --approach $approach --dataset $dataset --metric $metric --loss $loss \
---preprocess_trn $preprocess_trn --preprocess_tst $preprocess_tst --num_k_fold $num_k_fold --batch_size $batch_size \
---num_epochs $num_epochs --patience $patience --num_classes $num_classes \
---multi_output $multi_output --output_name $output_name --attention_loss $attention_loss --activation $activation \
---overlap_penalty_loss $overlap_penalty_loss --trn_patch_size $trn_patch_size --trn_output_size $trn_output_size \
---trn_step_size $trn_step_size --tst_patch_size $tst_patch_size --tst_output_size $tst_output_size --tst_step_size $tst_step_size \
---is_set_random_seed $is_set_random_seed --random_seed_num $random_seed_num --crop_margin $crop_margin \
---bg_discard_percentage $bg_discard_percentage --importance_spl $importance_spl --oversampling $oversampling \
---threshold $threshold --target $target --image_modality $image_modality --augment_sar_data $augment_sar_data \
---trn_dim $trn_dim --ensemble_weight $ensemble_weight --folder_names $folder_names --normalized_range_min $normalized_range_min \
---normalized_range_max $normalized_range_max --dataset_path $dataset_path --continue_tr $continue_tr --is_unseen_case $is_unseen_case --is_measure $is_measure \
---is_trn_inference $is_trn_inference --is_new_trn_label $is_new_trn_label --new_label_path $new_label_path \
---is_fsl $is_fsl --num_model_samples $num_model_samples --f_use $f_use --f_num_loop $f_num_loop --f_spectral_norm $f_spectral_norm \
---g_spectral_norm $g_spectral_norm --g_network $g_network --g_optimizer $g_optimizer --g_initial_lr $g_initial_lr --g_num_classes $g_num_classes \
---g_multi_output $g_multi_output --g_output_name $g_output_name --g_attention_loss $g_attention_loss \
---g_overlap_penalty_loss $g_overlap_penalty_loss --g_lamda $g_lamda --g_adv_loss_weight $g_adv_loss_weight \
---g_metric $g_metric --g_loss $g_loss --g_activation $g_activation --g_trn_patch_size $g_trn_patch_size \
---g_trn_output_size $g_trn_output_size --g_trn_step_size $g_trn_step_size --g_tst_patch_size $g_tst_patch_size \
---g_tst_output_size $g_tst_output_size --g_tst_step_size $g_tst_step_size \
---d_network $d_network --d_optimizer $d_optimizer --d_initial_lr $d_initial_lr --d_num_classes $d_num_classes \
---d_metric $d_metric --d_loss $d_loss --d_activation $d_activation --d_spectral_norm $d_spectral_norm --d_trn_patch_size $d_trn_patch_size \
---d_trn_output_size $d_trn_output_size --d_trn_step_size $d_trn_step_size --d_tst_patch_size $d_tst_patch_size \
---d_tst_output_size $d_tst_output_size --d_tst_step_size $d_tst_step_size
+#echo python3 run.py --mode $mode --gpu_id $gpu_id --num_of_gpu $num_of_gpu --output_name $output_name --exclusive_train $exclusive_train \
+#--exclude_label_num $exclude_label_num --approach $approach --dataset $dataset --metric $metric --loss $loss \
+#--preprocess_trn $preprocess_trn --preprocess_tst $preprocess_tst --num_k_fold $num_k_fold --batch_size $batch_size \
+#--num_epochs $num_epochs --patience $patience --num_classes $num_classes \
+#--multi_output $multi_output --output_name $output_name --attention_loss $attention_loss --activation $activation \
+#--overlap_penalty_loss $overlap_penalty_loss --trn_patch_size $trn_patch_size --trn_output_size $trn_output_size \
+#--trn_step_size $trn_step_size --tst_patch_size $tst_patch_size --tst_output_size $tst_output_size --tst_step_size $tst_step_size \
+#--is_set_random_seed $is_set_random_seed --random_seed_num $random_seed_num --crop_margin $crop_margin \
+#--bg_discard_percentage $bg_discard_percentage --importance_spl $importance_spl --oversampling $oversampling \
+#--threshold $threshold --target $target --image_modality $image_modality --augment_sar_data $augment_sar_data \
+#--trn_dim $trn_dim --ensemble_weight $ensemble_weight --folder_names $folder_names --normalized_range_min $normalized_range_min \
+#--normalized_range_max $normalized_range_max --dataset_path $dataset_path --continue_tr $continue_tr --is_unseen_case $is_unseen_case --is_measure $is_measure \
+#--is_trn_inference $is_trn_inference --is_new_trn_label $is_new_trn_label --new_label_path $new_label_path \
+#--is_fsl $is_fsl --num_model_samples $num_model_samples --f_use $f_use --f_num_loop $f_num_loop --f_spectral_norm $f_spectral_norm \
+#--g_spectral_norm $g_spectral_norm --g_network $g_network --g_optimizer $g_optimizer --g_initial_lr $g_initial_lr --g_num_classes $g_num_classes \
+#--g_multi_output $g_multi_output --g_output_name $g_output_name --g_attention_loss $g_attention_loss \
+#--g_overlap_penalty_loss $g_overlap_penalty_loss --g_lamda $g_lamda --g_adv_loss_weight $g_adv_loss_weight \
+#--g_metric $g_metric --g_loss $g_loss --g_activation $g_activation --g_trn_patch_size $g_trn_patch_size \
+#--g_trn_output_size $g_trn_output_size --g_trn_step_size $g_trn_step_size --g_tst_patch_size $g_tst_patch_size \
+#--g_tst_output_size $g_tst_output_size --g_tst_step_size $g_tst_step_size \
+#--d_network $d_network --d_optimizer $d_optimizer --d_initial_lr $d_initial_lr --d_num_classes $d_num_classes \
+#--d_metric $d_metric --d_loss $d_loss --d_activation $d_activation --d_spectral_norm $d_spectral_norm --d_trn_patch_size $d_trn_patch_size \
+#--d_trn_output_size $d_trn_output_size --d_trn_step_size $d_trn_step_size --d_tst_patch_size $d_tst_patch_size \
+#--d_tst_output_size $d_tst_output_size --d_tst_step_size $d_tst_step_size
+#
+#
+#python3 run.py --mode $mode --gpu_id $gpu_id --num_of_gpu $num_of_gpu --output_name $output_name --exclusive_train $exclusive_train \
+#--exclude_label_num $exclude_label_num --approach $approach --dataset $dataset --metric $metric --loss $loss \
+#--preprocess_trn $preprocess_trn --preprocess_tst $preprocess_tst --num_k_fold $num_k_fold --batch_size $batch_size \
+#--num_epochs $num_epochs --patience $patience --num_classes $num_classes \
+#--multi_output $multi_output --output_name $output_name --attention_loss $attention_loss --activation $activation \
+#--overlap_penalty_loss $overlap_penalty_loss --trn_patch_size $trn_patch_size --trn_output_size $trn_output_size \
+#--trn_step_size $trn_step_size --tst_patch_size $tst_patch_size --tst_output_size $tst_output_size --tst_step_size $tst_step_size \
+#--is_set_random_seed $is_set_random_seed --random_seed_num $random_seed_num --crop_margin $crop_margin \
+#--bg_discard_percentage $bg_discard_percentage --importance_spl $importance_spl --oversampling $oversampling \
+#--threshold $threshold --target $target --image_modality $image_modality --augment_sar_data $augment_sar_data \
+#--trn_dim $trn_dim --ensemble_weight $ensemble_weight --folder_names $folder_names --normalized_range_min $normalized_range_min \
+#--normalized_range_max $normalized_range_max --dataset_path $dataset_path --continue_tr $continue_tr --is_unseen_case $is_unseen_case --is_measure $is_measure \
+#--is_trn_inference $is_trn_inference --is_new_trn_label $is_new_trn_label --new_label_path $new_label_path \
+#--is_fsl $is_fsl --num_model_samples $num_model_samples --f_use $f_use --f_num_loop $f_num_loop --f_spectral_norm $f_spectral_norm \
+#--g_spectral_norm $g_spectral_norm --g_network $g_network --g_optimizer $g_optimizer --g_initial_lr $g_initial_lr --g_num_classes $g_num_classes \
+#--g_multi_output $g_multi_output --g_output_name $g_output_name --g_attention_loss $g_attention_loss \
+#--g_overlap_penalty_loss $g_overlap_penalty_loss --g_lamda $g_lamda --g_adv_loss_weight $g_adv_loss_weight \
+#--g_metric $g_metric --g_loss $g_loss --g_activation $g_activation --g_trn_patch_size $g_trn_patch_size \
+#--g_trn_output_size $g_trn_output_size --g_trn_step_size $g_trn_step_size --g_tst_patch_size $g_tst_patch_size \
+#--g_tst_output_size $g_tst_output_size --g_tst_step_size $g_tst_step_size \
+#--d_network $d_network --d_optimizer $d_optimizer --d_initial_lr $d_initial_lr --d_num_classes $d_num_classes \
+#--d_metric $d_metric --d_loss $d_loss --d_activation $d_activation --d_spectral_norm $d_spectral_norm --d_trn_patch_size $d_trn_patch_size \
+#--d_trn_output_size $d_trn_output_size --d_trn_step_size $d_trn_step_size --d_tst_patch_size $d_tst_patch_size \
+#--d_tst_output_size $d_tst_output_size --d_tst_step_size $d_tst_step_size

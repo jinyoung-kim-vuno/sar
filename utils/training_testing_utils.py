@@ -1,6 +1,6 @@
 import numpy as np
 
-from keras.utils import np_utils
+from tensorflow.keras.utils import to_categorical
 from operator import itemgetter
 from .extraction import extract_patches
 from .general_utils import pad_both_sides
@@ -45,6 +45,7 @@ def build_training_set(gen_conf, train_conf, input_data, labels):
     x = np.zeros((0, ) + data_patch_shape)
     y = np.zeros((0, ) + output_patch_shape)
     for idx in range(len(input_data)):
+        print(idx)
         y_length = len(y)
 
         # pad_size = ()
@@ -70,8 +71,9 @@ def build_training_set(gen_conf, train_conf, input_data, labels):
 
         sum_axis = (1, 2, 3) if dimension == 3 else (1, 2)
 
-        valid_idxs = np.where(np.sum(label_patches != bg_value, axis=sum_axis) >= minimum_non_bg)
+        valid_idxs = np.where(np.sum(label_patches != bg_value, axis=sum_axis) > minimum_non_bg)
         label_patches = label_patches[valid_idxs]
+        print(label_patches.shape)
 
         N = len(label_patches)
 
@@ -80,13 +82,14 @@ def build_training_set(gen_conf, train_conf, input_data, labels):
 
         # one-hot encoding (if sparse_categorical_crossentropy is used, don't do this and just leave integer target)
         for i in range(N) :
-            tmp = np_utils.to_categorical(label_patches[i].flatten(), num_targets)
+            tmp = to_categorical(label_patches[i].flatten(), num_targets)
             y[i + y_length] = tmp
 
         del label_patches
 
         data_train = extract_patches(dimension, input_vol, data_patch_shape, data_extraction_step)
         x[y_length:] = data_train[valid_idxs]
+        print(x.shape)
 
         del data_train
 

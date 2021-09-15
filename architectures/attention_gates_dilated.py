@@ -1,15 +1,15 @@
 
 import numpy as np
 from math import floor
-from keras import backend as K
-from keras.layers import Activation, Add, Multiply, UpSampling2D, UpSampling3D, Lambda, Concatenate, BatchNormalization
-from keras.layers.convolutional import Conv2D
-from keras.layers.convolutional import Conv3D
-from keras.regularizers import l2
-from keras.initializers import he_normal
+from tensorflow.keras import backend as K
+from tensorflow.keras.layers import Activation, Add, Multiply, UpSampling2D, UpSampling3D, Lambda, Concatenate, \
+    BatchNormalization, Conv2D, Conv3D
+from tensorflow.keras.regularizers import l2
+from tensorflow.keras.initializers import he_normal
 import tensorflow as tf
 
-K.set_image_dim_ordering('th')
+K.set_image_data_format('channels_first')
+#K.set_image_dim_ordering('th')
 
 
 def grid_attention(dimension, fused_f, gate, d_lst, scale, nb_filter, kernel_init, weight_decay=1e-4):
@@ -18,7 +18,7 @@ def grid_attention(dimension, fused_f, gate, d_lst, scale, nb_filter, kernel_ini
     kernel_size = (1, 1) if dimension == 2 else (1, 1, 1)
     sub_sample_factor = (2, 2) if dimension == 2 else (2, 2, 2)
 
-    #fused_f_size = np.int(fused_f._keras_shape[2])
+    #fused_f_size = np.int(fused_f.shape[2])
     #d = max(1, floor(fused_f_size / kernel_size[0]))
     #d = 1
 
@@ -35,11 +35,11 @@ def grid_attention(dimension, fused_f, gate, d_lst, scale, nb_filter, kernel_ini
         gate_up = UpSampling2D(size=sub_sample_factor)(gate)
         fused_gate = Add()([fused_f, gate_up])
         channel_wise_avg_pool = Lambda(lambda x: tf.reduce_mean(x, axis=channel_axis, keepdims=True))(fused_gate)
-        print(channel_wise_avg_pool._keras_shape)
+        print(channel_wise_avg_pool.shape)
         channel_wise_max_pool = Lambda(lambda x: tf.reduce_max(x, axis=channel_axis, keepdims=True))(fused_gate)
-        print(channel_wise_max_pool._keras_shape)
+        print(channel_wise_max_pool.shape)
         channel_wise_squeeze = Conv2D(1, (1, 1), kernel_initializer=kernel_init, use_bias=False)(fused_gate)
-        print(channel_wise_squeeze._keras_shape)
+        print(channel_wise_squeeze.shape)
         concate_avg_max_squeeze = Concatenate(axis=channel_axis)([channel_wise_avg_pool, channel_wise_max_pool,
                                                           channel_wise_squeeze])
         #bn = BatchNormalization(axis=concat_axis, epsilon=1.1e-5)(concate_avg_max_squeeze)
@@ -55,11 +55,11 @@ def grid_attention(dimension, fused_f, gate, d_lst, scale, nb_filter, kernel_ini
         gate_up = UpSampling3D(size=sub_sample_factor)(gate)
         fused_gate = Add()([fused_f, gate_up])
         channel_wise_avg_pool = Lambda(lambda x: tf.reduce_mean(x, axis=channel_axis, keepdims=True))(fused_gate)
-        print(channel_wise_avg_pool._keras_shape)
+        print(channel_wise_avg_pool.shape)
         channel_wise_max_pool = Lambda(lambda x: tf.reduce_max(x, axis=channel_axis, keepdims=True))(fused_gate)
-        print(channel_wise_max_pool._keras_shape)
+        print(channel_wise_max_pool.shape)
         channel_wise_squeeze = Conv3D(1, (1, 1, 1), kernel_initializer=kernel_init, use_bias=False)(fused_gate)
-        print(channel_wise_squeeze._keras_shape)
+        print(channel_wise_squeeze.shape)
         concate_avg_max_squeeze = Concatenate(axis=channel_axis)([channel_wise_avg_pool, channel_wise_max_pool,
                                                           channel_wise_squeeze])
         #bn = BatchNormalization(axis=concat_axis, epsilon=1.1e-5)(concate_avg_max_squeeze)

@@ -16,7 +16,7 @@ from utils.image import find_crop_mask, compute_crop_mask, compute_crop_mask_man
 from utils.image import remove_outliers
 #from nipype.interfaces.slicer.filtering import histogrammatching
 from utils.callbacks import generate_output_filename
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from numpy import expand_dims
 
 
@@ -388,6 +388,121 @@ def read_cbct_dataset(dataset_path, dataset_info, preprocess):
     print ("# of volumes: ", img_idx)
 
     return image_list, label_list, np.array(img_filename_ext_list), np.array(lb_filename_ext_list)
+
+
+def read_icv_dataset(data_path, trn_id_lst, tst_id_lst, modality, folder_names):
+
+    num_modality = len(modality)
+    data = folder_names[0]
+
+    trn_img_lst = []
+    trn_lb_lst = []
+    trn_fn_lst = []
+    tst_img_lst= []
+    tst_lb_lst = []
+    tst_fn_lst = []
+    with h5py.File(data_path, 'r') as db:
+        pid_lst = list(db[data].keys())
+        trn_img_idx = 0
+        print('training set id')
+        for trn_id in trn_id_lst:
+            print(pid_lst[int(trn_id)])
+            x = db[f'{data}/{pid_lst[int(trn_id)]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
+            y = db[f'{data}/{pid_lst[int(trn_id)]}/y'][:].transpose([1, 0, 2])
+
+            x = normalize_image(x, [0, 2 ** 8])
+
+            image_data = np.zeros((1, num_modality) + x.shape[0:3])
+            if np.size(np.shape(x)) == 4:
+                image_data[0, 0] = x[:, :, :, 0]
+            else:
+                image_data[0, 0] = x
+            trn_img_lst.append(image_data)
+
+            label_data = np.zeros((1, 1) + y.shape[0:3])
+            if np.size(np.shape(y)) == 4:
+                label_data[0, 0] = y[:, :, :, 0]
+            else:
+                label_data[0, 0] = y
+            trn_lb_lst.append(label_data)
+            trn_fn_lst.append(pid_lst[int(trn_id)])
+
+            trn_img_idx += 1
+
+        print ("# of volumes: ", trn_img_idx)
+
+        tst_img_idx = 0
+        print('test set id')
+        for tst_id in tst_id_lst:
+            x = db[f'{data}/{pid_lst[int(tst_id)]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
+            y = db[f'{data}/{pid_lst[int(tst_id)]}/y'][:].transpose([1, 0, 2])
+
+            x = normalize_image(x, [0, 2 ** 8])
+
+            image_data = np.zeros((1, num_modality) + x.shape[0:3])
+            if np.size(np.shape(x)) == 4:
+                image_data[0, 0] = x[:, :, :, 0]
+            else:
+                image_data[0, 0] = x
+            tst_img_lst.append(image_data)
+
+            label_data = np.zeros((1, 1) + y.shape[0:3])
+            if np.size(np.shape(y)) == 4:
+                label_data[0, 0] = y[:, :, :, 0]
+            else:
+                label_data[0, 0] = y
+            tst_lb_lst.append(label_data)
+            tst_fn_lst.append(pid_lst[int(tst_id)])
+            tst_img_idx += 1
+
+        print ("# of volumes: ", tst_img_idx)
+    return trn_img_lst, trn_lb_lst, trn_fn_lst, tst_img_lst, tst_lb_lst, tst_fn_lst
+
+
+def read_icv_dataset_unseen(data_path, tst_id_lst, modality, folder_names):
+
+    num_modality = len(modality)
+    data = folder_names[0]
+
+    trn_img_lst = []
+    trn_lb_lst = []
+    trn_fn_lst = []
+    tst_img_lst= []
+    tst_lb_lst = []
+    tst_fn_lst = []
+    with h5py.File(data_path, 'r') as db:
+        pid_lst = list(db[data].keys())
+        tst_img_idx = 0
+
+        #if tst_id_lst is empty, then process all the data in the folder
+        if tst_id_lst is None or len(tst_id_lst) == 0:
+            tst_id_lst = range(len(pid_lst))
+
+        print('test set id')
+        for tst_id in tst_id_lst:
+            x = db[f'{data}/{pid_lst[int(tst_id)]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
+            y = db[f'{data}/{pid_lst[int(tst_id)]}/y'][:].transpose([1, 0, 2])
+
+            x = normalize_image(x, [0, 2 ** 8])
+
+            image_data = np.zeros((1, num_modality) + x.shape[0:3])
+            if np.size(np.shape(x)) == 4:
+                image_data[0, 0] = x[:, :, :, 0]
+            else:
+                image_data[0, 0] = x
+            tst_img_lst.append(image_data)
+
+            label_data = np.zeros((1, 1) + y.shape[0:3])
+            if np.size(np.shape(y)) == 4:
+                label_data[0, 0] = y[:, :, :, 0]
+            else:
+                label_data[0, 0] = y
+            tst_lb_lst.append(label_data)
+            tst_fn_lst.append(pid_lst[int(tst_id)])
+            tst_img_idx += 1
+
+        print ("# of volumes: ", tst_img_idx)
+    return tst_img_lst, tst_lb_lst, tst_fn_lst
 
 
 def read_tha_dataset(gen_conf, train_conf, train_patient_lst, test_patient_lst, preprocess_trn, preprocess_tst,
@@ -4008,6 +4123,33 @@ def save_volume_cbct(gen_conf, train_conf, test_conf, volume, filename_ext, case
 
     print(out_filename)
     __save_volume(volume, image_data, out_filename, dataset_info['format'], is_compressed=True)
+
+
+def save_icv_seg(gen_conf, train_conf, volume, prob_volume, tst_fn, file_output_dir, fold_num):
+    dataset = train_conf['dataset']
+    dataset_info = gen_conf['dataset_info'][dataset]
+    dataset_path = gen_conf['dataset_path']
+
+    print(volume.shape)
+    volume_tmp = np.zeros(volume.shape + (1,))
+    volume_tmp[:, :, :, 0] = volume
+    volume = volume_tmp
+    print(volume.shape)
+
+    tst_file_path = os.path.join(dataset_path, 'X_conform', tst_fn + '.nii.gz')
+    print(tst_file_path)
+
+    tst_img_data = read_volume_data(tst_file_path)
+    tst_img_volume = tst_img_data.get_data()
+    print(tst_img_volume.shape)
+
+    icv_seg_filename = os.path.join(file_output_dir, tst_fn, 'icv_seg_%s.nii.gz' % fold_num)
+    print(icv_seg_filename)
+    __save_volume(volume, tst_img_data, icv_seg_filename, dataset_info['format'], is_compressed=True)
+
+    icv_prob_filename = os.path.join(file_output_dir, tst_fn, 'icv_prob_%s.nii.gz' % fold_num)
+    print(icv_prob_filename)
+    __save_volume(prob_volume, tst_img_data, icv_prob_filename, dataset_info['format'], is_compressed=True)
 
 
 def save_volume_tha(gen_conf, train_conf, test_conf, volume, prob_volume, test_fname, test_patient_id, seg_label,

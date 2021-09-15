@@ -1,22 +1,24 @@
 import numpy as np
-from keras import backend as K
+from tensorflow.keras import backend as K
 
-from keras.models import Model
-from keras.layers import Input, Dense, Dropout, Activation, Reshape, Conv2D, Conv3D, Conv2DTranspose, \
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, Dropout, Activation, Reshape, Conv2D, Conv3D, Conv2DTranspose, \
     Conv3DTranspose, UpSampling2D, UpSampling3D, MaxPooling2D, MaxPooling3D, AveragePooling2D, AveragePooling3D, \
     GlobalMaxPooling2D, GlobalMaxPooling3D, GlobalAveragePooling2D, GlobalAveragePooling3D, concatenate, \
-    BatchNormalization, Activation, Add, Multiply
-from keras.regularizers import l2
-from keras.layers.core import Permute
-from keras.engine.topology import get_source_inputs
-from keras_contrib.layers import SubPixelUpscaling
-from keras.utils import multi_gpu_model
+    BatchNormalization, Activation, Add, Multiply, Permute
+from tensorflow.keras.regularizers import l2
+# from keras.layers.core import Permute
+#from keras.engine.topology import get_source_inputs
+from tensorflow.keras.utils import get_source_inputs
+#from keras_contrib.layers import SubPixelUpscaling
+from tensorflow.keras.utils import multi_gpu_model
 
 from utils import loss_functions, metrics, optimizers_builtin
 from .attention_gates import grid_attention, get_gate_signal
 from .squeeze_excitation import squeeze_excite_block2D,squeeze_excite_block3D
 
-K.set_image_dim_ordering('th')
+K.set_image_data_format('channels_first')
+#K.set_image_dim_ordering('th')
 
 # Jegou et al., CVPRW 17, "The One Hundred Layers Tiramisu: Fully Convolutional DenseNets for Semantic Segmentation"
 

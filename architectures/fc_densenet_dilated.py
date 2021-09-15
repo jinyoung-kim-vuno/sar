@@ -1,23 +1,25 @@
 import numpy as np
-from keras import backend as K
+from tensorflow.keras import backend as K
 
-from keras.models import Model
-from keras.layers import Input, Dense, Dropout, Activation, Reshape, Conv2D, Conv3D, Conv2DTranspose, \
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Input, Dense, Dropout, Activation, Reshape, Conv2D, Conv3D, Conv2DTranspose, \
     Conv3DTranspose, UpSampling2D, UpSampling3D, MaxPooling2D, MaxPooling3D, AveragePooling2D, AveragePooling3D, \
     GlobalMaxPooling2D, GlobalMaxPooling3D, GlobalAveragePooling2D, GlobalAveragePooling3D, concatenate, \
-    BatchNormalization, Activation, Add, Multiply, Cropping2D, Cropping3D, Lambda
-from keras.regularizers import l2
-from keras.layers.core import Permute
-from keras.engine.topology import get_source_inputs
-from keras_contrib.layers import SubPixelUpscaling
-from keras.initializers import he_normal
-from keras.utils import multi_gpu_model
+    BatchNormalization, Activation, Add, Multiply, Cropping2D, Cropping3D, Lambda, Permute
+from tensorflow.keras.regularizers import l2
+#from tensorflow.keras.layers.core import Permute
+#from tensorflow.keras.engine.topology import get_source_inputs
+from tensorflow.keras.utils import get_source_inputs
+#from keras_contrib.layers import SubPixelUpscaling
+from tensorflow.keras.initializers import he_normal
+from tensorflow.keras.utils import multi_gpu_model
 from utils import loss_functions, metrics, optimizers_builtin
 from .squeeze_excitation import spatial_and_channel_squeeze_excite_block2D, spatial_and_channel_squeeze_excite_block3D
 from .attention_gates_dilated import grid_attention
 from .attention_gates import _concatenation
 
-K.set_image_dim_ordering('th')
+K.set_image_data_format('channels_first')
+#K.set_image_dim_ordering('th')
 
 # Ref.
 # Jegou et al., CVPRW 17, "The One Hundred Layers Tiramisu: Fully Convolutional DenseNets for Semantic Segmentation"
@@ -360,7 +362,7 @@ def __generate_fc_densenet_ms(num_of_gpu, dimension, num_classes, multi_output, 
         if global_path and local_path:
             # img_input 64x64x64 patches for thalamus, 32x32x32 patches for dentate
             if input_shape[2] != expected_output_shape[2]:
-                input_crop_size = np.int(img_input._keras_shape[2] / 4)
+                input_crop_size = np.int(img_input.shape[2] / 4)
                 local_input = get_cropping_layer(dimension, img_input,
                                                  crop_size=(input_crop_size, input_crop_size))  # local features
             else:
@@ -689,7 +691,7 @@ def conv_dense_transition_down(dimension, img_input, init_conv_filters, initial_
 
             if dilated_db_fp_input and block_idx != 0:
                 channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-                ch_x_pool = x_pool._keras_shape[channel_axis]
+                ch_x_pool = x_pool.shape[channel_axis]
                 img_input, img_input_activation = multi_scale_input(dimension, img_input, ch_x_pool, initial_kernel_size,
                                                                     kernel_init, block_idx, block_prefix_num,
                                                                     weight_decay, concat_axis)
@@ -707,7 +709,7 @@ def conv_dense_transition_down(dimension, img_input, init_conv_filters, initial_
                     x = MaxPooling3D(pooling_size)(x)
                 if dilated_db_fp_input:
                     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-                    ch_x_pool = x._keras_shape[channel_axis]
+                    ch_x_pool = x.shape[channel_axis]
                     img_input, img_input_activation = multi_scale_input(dimension, img_input, ch_x_pool,
                                                                         initial_kernel_size, kernel_init,
                                                                         block_idx + 1, block_prefix_num, weight_decay,
@@ -748,7 +750,7 @@ def bottleneck_block(dimension, local_f, global_f, weight_decay, concat_axis, bo
                      kernel_init, random_seed_num, growth_rate, dropout_rate, block_prefix, global_path, local_path,
                      low_res_input, glam, glam_arrange_type, glam_input_short_cut, glam_final_conv):
     channel_axis = 1 if K.image_data_format() == "channels_first" else -1
-    #input_channels = x_local._keras_shape[channel_axis]
+    #input_channels = x_local.shape[channel_axis]
 
     if global_path and local_path:
         db_input = __transition_block(dimension, local_f, global_f, nb_filter, kernel_init, random_seed_num,
@@ -1312,7 +1314,7 @@ def __transition_block(dimension, local_f, global_f, nb_filter, kernel_init, ran
             sub_sample_factor = (2, 2) if dimension == 2 else (2, 2, 2)
         else:
             sub_sample_factor = (1, 1) if dimension == 2 else (1, 1, 1)
-        global_f_crop_size = np.int((global_f._keras_shape[2] * sub_sample_factor[0] - global_f._keras_shape[2]) / 2)
+        global_f_crop_size = np.int((global_f.shape[2] * sub_sample_factor[0] - global_f.shape[2]) / 2)
 
         if dimension == 2:
             if local_f is not None:

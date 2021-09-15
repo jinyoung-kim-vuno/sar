@@ -1,9 +1,10 @@
 import os
 import math
-from keras.callbacks import CSVLogger
-from keras.callbacks import EarlyStopping
-from keras.callbacks import ModelCheckpoint
-from keras.callbacks import LearningRateScheduler
+from tensorflow.keras.callbacks import CSVLogger
+from tensorflow.keras.callbacks import TensorBoard
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import LearningRateScheduler
 
 def generate_output_filename(path, dataset, mode, case_name, approach, loss, dimension, num_classes, patch_shape, extraction_step,
                              data_augmentation, preprocess_trn, extension) :
@@ -15,9 +16,9 @@ def generate_output_filename(path, dataset, mode, case_name, approach, loss, dim
                                data_augmentation, preprocess_trn, extension)
 
 def generate_callbacks(gen_conf, train_conf, case_name) :
-    root_path = gen_conf['root_path']
-    model_path = gen_conf['model_path']
-    log_path = gen_conf['log_path']
+    root_dir = gen_conf['root_path']
+    model_dir = gen_conf['model_path']
+    log_dir = gen_conf['log_path']
     dataset = train_conf['dataset']
     dataset_info = gen_conf['dataset_info'][dataset]
     num_classes = gen_conf['num_classes']
@@ -46,25 +47,27 @@ def generate_callbacks(gen_conf, train_conf, case_name) :
     else:
         data_augment_label = ''
 
-    if not os.path.exists(root_path + model_path + '/' + dataset + '/' + folder_names[0]):
-        os.makedirs(os.path.join(root_path, model_path, dataset, folder_names[0]))
+    model_path = os.path.join(root_dir, model_dir, dataset, folder_names[0])
+    log_path = os.path.join(root_dir, log_dir, dataset, folder_names[0])
 
-    if not os.path.exists(root_path + log_path + '/' + dataset + '/' + folder_names[0]):
-        os.makedirs(os.path.join(root_path, log_path, dataset, folder_names[0]))
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
 
     if multi_output == 1:
         loss = loss[0] + '_' + loss[1]
-    model_filename = generate_output_filename(root_path + model_path, dataset + '/' + folder_names[0], 'mode_'+ mode,
+    model_filename = generate_output_filename(root_path + model_dir, dataset + '/' + folder_names[0], 'mode_'+ mode,
                                               case_name, approach, loss, 'dim_' + str(dimension), 'n_classes_' +
                                               str(num_classes), str(patch_shape), str(extraction_step),
                                               data_augment_label, 'preproc_trn_opt_' + str(preprocess_trn), 'h5')
 
-    csv_filename = generate_output_filename(root_path + log_path, dataset + '/' + folder_names[0], 'mode_'+ mode,
+    csv_filename = generate_output_filename(root_path + log_dir, dataset + '/' + folder_names[0], 'mode_'+ mode,
                                             case_name, approach, loss, 'dim_' + str(dimension), 'n_classes_' +
                                             str(num_classes), str(patch_shape), str(extraction_step),
                                             data_augment_label, 'preproc_trn_opt_' + str(preprocess_trn), 'cvs')
 
-    # EarlyStopping(monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto', baseline=None)
     if multi_output == 1:
         if metric_opt in ['acc', 'acc_dc', 'loss']:
             metric_monitor = 'val_' + output_name[0] + '_' + metric_opt
@@ -89,12 +92,20 @@ def generate_callbacks(gen_conf, train_conf, case_name) :
                 print('unknown metric for early stopping')
                 metric_monitor = None
 
+    # EarlyStopping(monitor='val_loss', min_delta=0, patience=0, verbose=0, mode='auto', baseline=None)
     stopper = EarlyStopping(monitor=metric_monitor, patience=train_conf['patience'])
+
     #For val_acc, 'mode' should be max, for val_loss this should be min, etc.
     #In auto mode, the direction is automatically inferred from the name of the monitored quantity.
     checkpointer = ModelCheckpoint(filepath=model_filename, monitor=metric_monitor, verbose=0, save_best_only=True,
                                    save_weights_only=True, mode='auto')
-    csv_logger = CSVLogger(csv_filename, separator=';')
+    #csv_logger = CSVLogger(csv_filename, separator=';')
+
+    current_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+    log_path_f = log_path + '/' + current_time
+    tb_logger = TensorBoard(log_dir=log_path_f, histogram_freq=0, write_graph=True, write_images=False,
+                            write_steps_per_second=False, update_freq='epoch', profile_batch=2, embeddings_freq=0,
+                            embeddings_metadata=None)
 
     if optimizer == 'SGD':
         # learning rate schedule for SGD (Adam, Adagrad, and RMSprop are adaptive learning rate methods and keras provides options)
@@ -118,8 +129,8 @@ def generate_callbacks(gen_conf, train_conf, case_name) :
                     return initial_lr * decay_rate
                 return initial_lr
         lrate = LearningRateScheduler(decay)
-        return [stopper, checkpointer, csv_logger, lrate]
+        return [stopper, checkpointer, tb_logger, lrate]
     else:
-        return [stopper, checkpointer, csv_logger]
+        return [stopper, checkpointer, tb_logger]
 
 
