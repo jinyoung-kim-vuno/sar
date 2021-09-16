@@ -329,7 +329,7 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
                 trn_id_lst = [patient_id[i] for i in trn_idx]
             tst_id_lst = [patient_id[i] for i in tst_idx]
 
-            if k in [0]:
+            if k in []:
                 k += 1
                 continue
 
