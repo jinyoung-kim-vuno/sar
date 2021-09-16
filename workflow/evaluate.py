@@ -312,7 +312,7 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
         trn_tst_lst = zip(trn_id_lst, tst_is_lst)  # set test_patient_lst as None for only training
     elif mode == '2': # test only # combine to mode 1
         trn_id_lst = [[None]]
-        tst_id_lst = [[None]]   # 5th
+        tst_id_lst = [[None]]   #[['36']]   #[['6', '25', '26', '29', '31', '69', '82']] #[['36']]  # OpenfMRI: [['6', '25', '26', '29', '31', '69', '82']]
         fold_num = 0
         trn_tst_lst = zip(trn_id_lst, tst_id_lst)
     else:

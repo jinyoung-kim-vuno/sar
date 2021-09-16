@@ -4104,7 +4104,8 @@ def save_icv_seg(gen_conf, train_conf, volume, prob_volume, tst_lb, tst_fn, file
     if data == 'manual':
         tst_file_path = os.path.join(os.path.dirname(dataset_path), data, 'X_conform', tst_fn + '.nii.gz')
     else:
-        tst_file_path = os.path.join(os.path.dirname(dataset_path), data, tst_fn, tst_fn + '.nii.gz')
+        #tst_file_path = os.path.join(os.path.dirname(dataset_path), data, tst_fn, tst_fn + '.nii.gz')
+        tst_file_path = os.path.join('/mnt/home/hep/ICV_segmentation/icvmapper_output', data, tst_fn, tst_fn + '_std_orient.nii.gz')
     print(tst_file_path)
 
     tst_img_data = read_volume_data(tst_file_path)
@@ -4117,31 +4118,36 @@ def save_icv_seg(gen_conf, train_conf, volume, prob_volume, tst_lb, tst_fn, file
 
     t1_filename = os.path.join(tst_dir, 't1.nii.gz')
     print(t1_filename)
-    __save_volume(tst_img_volume, tst_img_data, t1_filename, dataset_info['format'], is_compressed=True)
+    __save_volume_icv(tst_img_volume, tst_img_data, t1_filename, dataset_info['format'], 'uint8', is_compressed=True)
 
     if data == 'manual':
         icv_gt_filename = os.path.join(tst_dir, 'icv_gt_%s.nii.gz' % fold_num)
     else:
         icv_gt_filename = os.path.join(tst_dir, 'icv_mapper_%s.nii.gz' % fold_num)
     print(icv_gt_filename)
-    __save_volume(tst_lb[0,0].transpose([1, 0, 2]), tst_img_data, icv_gt_filename, dataset_info['format'], is_compressed=True)
+    __save_volume_icv(tst_lb[0,0].transpose([1, 0, 2]), tst_img_data, icv_gt_filename, dataset_info['format'], 'uint8',
+                      is_compressed=True)
 
     icv_seg_filename = os.path.join(tst_dir, 'icv_seg_%s.nii.gz' % fold_num)
     print(icv_seg_filename)
-    __save_volume(volume.transpose([1, 0, 2]), tst_img_data, icv_seg_filename, dataset_info['format'], is_compressed=True)
+    __save_volume_icv(volume.transpose([1, 0, 2]), tst_img_data, icv_seg_filename, dataset_info['format'], 'uint8',
+                      is_compressed=True)
 
     icv_seg_post_filename = os.path.join(tst_dir, 'icv_seg_postprocessed_%s.nii.gz' % fold_num)
     print(icv_seg_post_filename)
     volume_post = postprocess(volume)
-    __save_volume(volume_post.transpose([1, 0, 2]), tst_img_data, icv_seg_post_filename, dataset_info['format'], is_compressed=True)
+    __save_volume_icv(volume_post.transpose([1, 0, 2]), tst_img_data, icv_seg_post_filename, dataset_info['format'],
+                      'uint8', is_compressed=True)
 
     icv_prob_bg_filename = os.path.join(tst_dir, 'icv_prob_bg_%s.nii.gz' % fold_num)
     print(icv_prob_bg_filename)
-    __save_volume(prob_volume[0].transpose([1, 0, 2]), tst_img_data, icv_prob_bg_filename, dataset_info['format'], is_compressed=True)
+    __save_volume_icv(prob_volume[0].transpose([1, 0, 2]), tst_img_data, icv_prob_bg_filename, dataset_info['format'],
+                      'float32', is_compressed=False)
 
     icv_prob_fg_filename = os.path.join(tst_dir, 'icv_prob_fg_%s.nii.gz' % fold_num)
     print(icv_prob_fg_filename)
-    __save_volume(prob_volume[1].transpose([1, 0, 2]), tst_img_data, icv_prob_fg_filename, dataset_info['format'], is_compressed=True)
+    __save_volume_icv(prob_volume[1].transpose([1, 0, 2]), tst_img_data, icv_prob_fg_filename, dataset_info['format'],
+                      'float32', is_compressed=False)
 
 
 def save_volume_tha(gen_conf, train_conf, test_conf, volume, prob_volume, test_fname, test_patient_id, seg_label,
@@ -5816,6 +5822,25 @@ def __save_volume(volume, image_data, filename, format, is_compressed) :
         if is_compressed:
             # labels were assigned between 0 and 255 (8bit)
             img = nib.analyze.AnalyzeImage(volume.astype('uint8'), image_data.affine)
+        else:
+            img = nib.analyze.AnalyzeImage(volume, image_data.affine)
+        #img = nib.analyze.AnalyzeImage(volume.astype('uint' + max_bit), image_data.affine)
+        #img.set_data_dtype('uint8')
+    nib.save(img, filename)
+
+
+def __save_volume_icv(volume, image_data, filename, format, data_type, is_compressed) :
+    img = None
+    #max_bit = np.ceil(np.log2(np.max(volume.flatten())))
+    if format in ['nii', 'nii.gz'] :
+        if is_compressed:
+            img = nib.Nifti1Image(volume.astype(data_type), image_data.affine)
+        else:
+            img = nib.Nifti1Image(volume, image_data.affine)
+    elif format == 'analyze':
+        if is_compressed:
+            # labels were assigned between 0 and 255 (8bit)
+            img = nib.analyze.AnalyzeImage(volume.astype(data_type), image_data.affine)
         else:
             img = nib.analyze.AnalyzeImage(volume, image_data.affine)
         #img = nib.analyze.AnalyzeImage(volume.astype('uint' + max_bit), image_data.affine)

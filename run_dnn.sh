@@ -45,7 +45,7 @@ is_unseen_case='0'
 is_measure='1'
 is_new_trn_label='0' # 0: 29 manual labels, 1: 31 segmentation using a proposed network, 2: suit labels, 3: 29 manual labels + 31 seg (self-training?)
 new_label_path=''
-folder_names='CAT' #ASAN, manual' # if is_unseen_case on, then data name for test set
+folder_names='JEJ' #ASAN, JEJ, OpenfMRI, manual' # if is_unseen_case on, then data name for test set
 dataset_path='/mnt/home/jinyoung/data/icv_seg/dataset2.hdf5'
 
 
