@@ -439,35 +439,36 @@ def read_icv_dataset(data_path, trn_id_lst, tst_id_lst, modality, folder_names, 
             if tst_id_lst[0] is None or len(tst_id_lst) == 0:
                 tst_id_lst = range(len(pid_lst))
 
-        tst_img_idx = 0
-        print('test set id')
-        for tst_id in tst_id_lst:
-            if isinstance(tst_id, str):
-                tst_id = int(tst_id)
-            print(pid_lst[tst_id])
-            x = db[f'{data}/{pid_lst[tst_id]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
-            y = db[f'{data}/{pid_lst[tst_id]}/y'][:].transpose([1, 0, 2])
+        if mode != '1':
+            tst_img_idx = 0
+            print('test set id')
+            for tst_id in tst_id_lst:
+                if isinstance(tst_id, str):
+                    tst_id = int(tst_id)
+                print(pid_lst[tst_id])
+                x = db[f'{data}/{pid_lst[tst_id]}/x'][:].transpose([1, 0, 2]).astype(np.float32)
+                y = db[f'{data}/{pid_lst[tst_id]}/y'][:].transpose([1, 0, 2])
 
-            x = normalize_image(x, [0, 2 ** 8])
-            y = normalize_image(y, [0, 1])
+                x = normalize_image(x, [0, 2 ** 8])
+                y = normalize_image(y, [0, 1])
 
-            image_data = np.zeros((1, num_modality) + x.shape[0:3])
-            if np.size(np.shape(x)) == 4:
-                image_data[0, 0] = x[:, :, :, 0]
-            else:
-                image_data[0, 0] = x
-            tst_img_lst.append(image_data)
+                image_data = np.zeros((1, num_modality) + x.shape[0:3])
+                if np.size(np.shape(x)) == 4:
+                    image_data[0, 0] = x[:, :, :, 0]
+                else:
+                    image_data[0, 0] = x
+                tst_img_lst.append(image_data)
 
-            label_data = np.zeros((1, 1) + y.shape[0:3])
-            if np.size(np.shape(y)) == 4:
-                label_data[0, 0] = y[:, :, :, 0]
-            else:
-                label_data[0, 0] = y
-            tst_lb_lst.append(label_data)
-            tst_fn_lst.append(pid_lst[tst_id])
-            tst_img_idx += 1
+                label_data = np.zeros((1, 1) + y.shape[0:3])
+                if np.size(np.shape(y)) == 4:
+                    label_data[0, 0] = y[:, :, :, 0]
+                else:
+                    label_data[0, 0] = y
+                tst_lb_lst.append(label_data)
+                tst_fn_lst.append(pid_lst[tst_id])
+                tst_img_idx += 1
+            print ("# of volumes: ", tst_img_idx)
 
-        print ("# of volumes: ", tst_img_idx)
     return trn_img_lst, trn_lb_lst, trn_fn_lst, tst_img_lst, tst_lb_lst, tst_fn_lst
 
 

@@ -307,8 +307,8 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
         trn_tst_lst = kfold.split(range(num_data))
     elif mode == '1':  # designated training and test set (if test set is None, training only)
         # patient id
-        trn_id_lst = [['']]
-        tst_is_lst = [[None]]
+        trn_id_lst = [['0', '1', '2', '3', '4', '5', '6', '7']]
+        tst_is_lst = [[]]
         trn_tst_lst = zip(trn_id_lst, tst_is_lst)  # set test_patient_lst as None for only training
     elif mode == '2': # test only # combine to mode 1
         trn_id_lst = [[None]]
@@ -373,26 +373,26 @@ def evaluate_icv_seg(gen_conf, train_conf, test_conf):
                                                                                                     mode)
         if mode != '2':  # train the model
             model = train_icv_model(gen_conf, train_conf, trn_img_lst, trn_lb_lst, fold_num)
-
         else:  # test only
             model = read_model(gen_conf, train_conf, fold_num)  # model filename should have 'mode_2_'
 
-        # predict the test set
-        for tst_img, tst_lb, tst_fn in zip(tst_img_lst, tst_lb_lst, tst_fn_lst):
-            print('#' + str(fold_num) + ': processing test_patient_id - ' + tst_fn)
+        if mode != '1':
+            # predict the test set
+            for tst_img, tst_lb, tst_fn in zip(tst_img_lst, tst_lb_lst, tst_fn_lst):
+                print('#' + str(fold_num) + ': processing test_patient_id - ' + tst_fn)
 
-            # inference from the learned model
-            rec_vol_crop, prob_vol_crop, test_patches = inference(gen_conf, train_conf, test_conf, tst_img, model)
+                # inference from the learned model
+                rec_vol_crop, prob_vol_crop, test_patches = inference(gen_conf, train_conf, test_conf, tst_img, model)
 
-            # uncrop and save the segmentation result
-            save_icv_seg(gen_conf, train_conf, rec_vol_crop, prob_vol_crop, tst_lb, tst_fn, file_output_dir,
-                         folder_names, fold_num)
+                # uncrop and save the segmentation result
+                save_icv_seg(gen_conf, train_conf, rec_vol_crop, prob_vol_crop, tst_lb, tst_fn, file_output_dir,
+                             folder_names, fold_num)
 
-            # compute DC
-            if is_measure == 1:
-                _ = measure_icv_seg(gen_conf, tst_fn, file_output_dir, folder_names, fold_num)
+                # compute DC
+                if is_measure == 1:
+                    _ = measure_icv_seg(gen_conf, tst_fn, file_output_dir, folder_names, fold_num)
 
-            del test_patches
+                del test_patches
 
         k += 1
         f.close()

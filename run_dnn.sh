@@ -3,8 +3,8 @@
 ##!/usr/bin/env bash
 # for icv segmentation
 
-mode='2' # 0. training + testing (n-fold cross-validation), 1. training + testing (for designated cases) , 2. testing
-gpu_id='1' # specific gpu id ('0,1') or -1: all available GPUs, -2: cpu only
+mode='1' # 0. training + testing (n-fold cross-validation), 1. training + testing (for designated cases) , 2. testing
+gpu_id='0' # specific gpu id ('0,1') or -1: all available GPUs, -2: cpu only
 num_of_gpu='1' # only if gpu_id==-1
 num_classes='2' # 2 # 3
 multi_output='0'
@@ -45,7 +45,7 @@ is_unseen_case='0'
 is_measure='1'
 is_new_trn_label='0' # 0: 29 manual labels, 1: 31 segmentation using a proposed network, 2: suit labels, 3: 29 manual labels + 31 seg (self-training?)
 new_label_path=''
-folder_names='JEJ' #ASAN, JEJ, OpenfMRI, manual' # if is_unseen_case on, then data name for test set
+folder_names='manual' #ASAN, JEJ, OpenfMRI, manual' # if is_unseen_case on, then data name for test set
 dataset_path='/mnt/home/jinyoung/data/icv_seg/dataset2.hdf5'
 
 
